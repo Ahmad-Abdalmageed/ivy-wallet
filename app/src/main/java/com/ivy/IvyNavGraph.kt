@@ -43,6 +43,7 @@ import com.ivy.navigation.SearchScreen
 import com.ivy.navigation.SettingsScreen
 import com.ivy.navigation.TransactionsScreen
 import com.ivy.navigation.VoiceCommandsSettingsScreen
+import com.ivy.navigation.VoiceTransactionsReviewScreen
 import com.ivy.onboarding.OnboardingScreen
 import com.ivy.piechart.PieChartStatisticScreen
 import com.ivy.planned.edit.EditPlannedScreen
@@ -55,6 +56,7 @@ import com.ivy.settings.SettingsScreen
 import com.ivy.transaction.EditTransactionScreen
 import com.ivy.transactions.TransactionsScreen
 import com.ivy.voicecommands.VoiceCommandsSettingsScreenImpl
+import com.ivy.voicecommands.review.VoiceReviewScreenImpl
 
 @ExperimentalFoundationApi
 @ExperimentalAnimationApi
@@ -91,5 +93,6 @@ fun BoxWithConstraintsScope.IvyNavGraph(screen: Screen?) {
         DisclaimerScreen -> DisclaimerScreenImpl()
         PollScreen -> PollScreen()
         VoiceCommandsSettingsScreen -> VoiceCommandsSettingsScreenImpl()
+        VoiceTransactionsReviewScreen -> VoiceReviewScreenImpl()
     }
 }

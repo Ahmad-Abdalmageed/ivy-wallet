@@ -111,10 +111,36 @@ class LlmVoiceTransactionParserTest {
         )
 
         val draft = parser.parse(config, input)
-            .shouldBeInstanceOf<Either.Right<VoiceTransactionDraft>>().value
+            .shouldBeInstanceOf<Either.Right<List<VoiceTransactionDraft>>>().value.single()
 
         draft.amount.value shouldBe 25.0
         draft.category shouldBe food.id
+    }
+
+    @Test
+    fun `parses several transactions`() = runTest {
+        coEvery { llmClient.complete(config, any()) } returns Either.Right(
+            """
+                {"transactions": [
+                  {"type": "EXPENSE", "amount": 25, "title": "Coffee", "category": "Food",
+                   "account": "Cash", "toAccount": null, "date": null},
+                  {"type": "TRANSFER", "amount": 500, "title": null, "category": null,
+                   "account": "Cash", "toAccount": "Bank", "date": "2026-10-16"},
+                  {"type": "EXPENSE", "amount": null, "title": "Lunch", "category": null,
+                   "account": null, "toAccount": null, "date": null}
+                ]}
+            """.trimIndent()
+        )
+
+        val drafts = parser.parse(config, input)
+            .shouldBeInstanceOf<Either.Right<List<VoiceTransactionDraft>>>().value
+
+        // the one without an amount is dropped
+        drafts.size shouldBe 2
+        drafts[0].category shouldBe food.id
+        drafts[1].type shouldBe TransactionType.TRANSFER
+        drafts[1].toAccount shouldBe bank.id
+        drafts[1].date shouldBe Today.minusDays(1)
     }
 
     @Test

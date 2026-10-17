@@ -11,6 +11,7 @@ dependencies {
     implementation(projects.shared.data.core)
     implementation(projects.shared.ui.core)
     implementation(projects.shared.ui.navigation)
+    implementation(projects.widget.balance)
 
     implementation(libs.androidx.security)
     implementation(libs.bundles.ktor)

@@ -3,6 +3,7 @@ package com.ivy.voicecommands.parser
 import androidx.annotation.Keep
 import arrow.core.Either
 import arrow.core.raise.either
+import arrow.core.raise.ensure
 import arrow.core.raise.ensureNotNull
 import com.ivy.base.model.TransactionType
 import com.ivy.data.model.primitive.NotBlankTrimmedString
@@ -14,6 +15,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
@@ -33,15 +35,32 @@ class LlmVoiceTransactionParser @Inject constructor(
         coerceInputValues = true
     }
 
+    /**
+     * @return one draft per transaction mentioned in the command
+     */
     suspend fun parse(
         config: LlmConfig,
         input: VoiceParserInput,
-    ): Either<String, VoiceTransactionDraft> = either {
+    ): Either<String, List<VoiceTransactionDraft>> = either {
         val response = llmClient.complete(config, prompt(input)).bind()
-        val dto = Either.catch {
-            json.decodeFromString(LlmTransactionDto.serializer(), extractJsonObject(response))
-        }.mapLeft { "Unexpected AI response: $response" }.bind()
-        toDraft(dto, input).bind()
+        val dtos = Either.catch { decode(extractJsonObject(response)) }
+            .mapLeft { "Unexpected AI response: $response" }
+            .bind()
+        val drafts = dtos.mapNotNull { toDraft(it, input).getOrNull() }
+        ensure(drafts.isNotEmpty()) { "The AI couldn't find an amount" }
+        drafts
+    }
+
+    /**
+     * Accepts {"transactions": [...]} and, from models that ignore the format, a single transaction.
+     */
+    private fun decode(response: String): List<LlmTransactionDto> {
+        val element = json.parseToJsonElement(response).jsonObject
+        return if (element.containsKey("transactions")) {
+            json.decodeFromJsonElement(LlmTransactionsDto.serializer(), element).transactions.orEmpty()
+        } else {
+            listOf(json.decodeFromJsonElement(LlmTransactionDto.serializer(), element))
+        }
     }
 
     fun prompt(input: VoiceParserInput): LlmPrompt {
@@ -50,10 +69,12 @@ class LlmVoiceTransactionParser @Inject constructor(
         val weekday = input.today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH)
         return LlmPrompt(
             system = """
-                You turn a spoken command from the user of a personal finance app into exactly
-                one transaction. The command can be in any language.
+                You turn a spoken command from the user of a personal finance app into
+                transactions. The command can be in any language and can mention one or several
+                transactions (e.g. "spent 50 on food and 20 on coffee" is two transactions).
                 Today is ${input.today} ($weekday).
-                Reply with a JSON object only, with these fields:
+                Reply with a JSON object only: {"transactions": [...]}, one item per transaction
+                in the order they were said, each with these fields:
                 - "type": "EXPENSE", "INCOME" or "TRANSFER" (money moved between the user's own
                   accounts).
                 - "amount": the amount as a positive number, without currency.
@@ -67,6 +88,8 @@ class LlmVoiceTransactionParser @Inject constructor(
                   received the money, otherwise null.
                 - "date": the date of the transaction as YYYY-MM-DD if the command mentions one
                   (e.g. "yesterday"), otherwise null.
+                When a transaction doesn't mention its type, date or account, use the ones of the
+                transaction said before it.
                 Use category and account names exactly as written in the lists.
                 Categories: $categories
                 Accounts: $accounts
@@ -120,6 +143,12 @@ class LlmVoiceTransactionParser @Inject constructor(
 
 @Keep
 @Serializable
+data class LlmTransactionsDto(
+    val transactions: List<LlmTransactionDto>?,
+)
+
+@Keep
+@Serializable
 data class LlmTransactionDto(
     val type: String?,
     val amount: Double?,
@@ -134,15 +163,25 @@ private val transactionJsonSchema = """
     {
       "type": "object",
       "properties": {
-        "type": {"type": "string", "enum": ["EXPENSE", "INCOME", "TRANSFER"]},
-        "amount": {"type": "number"},
-        "title": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-        "category": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-        "account": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-        "toAccount": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-        "date": {"anyOf": [{"type": "string", "format": "date"}, {"type": "null"}]}
+        "transactions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["EXPENSE", "INCOME", "TRANSFER"]},
+              "amount": {"type": "number"},
+              "title": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+              "category": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+              "account": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+              "toAccount": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+              "date": {"anyOf": [{"type": "string", "format": "date"}, {"type": "null"}]}
+            },
+            "required": ["type", "amount", "title", "category", "account", "toAccount", "date"],
+            "additionalProperties": false
+          }
+        }
       },
-      "required": ["type", "amount", "title", "category", "account", "toAccount", "date"],
+      "required": ["transactions"],
       "additionalProperties": false
     }
 """.trimIndent()

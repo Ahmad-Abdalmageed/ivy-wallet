@@ -154,6 +154,8 @@ data object ReleasesScreen : Screen
 
 data object VoiceCommandsSettingsScreen : Screen
 
+data object VoiceTransactionsReviewScreen : Screen
+
 data object DisclaimerScreen : Screen
 
 data object PollScreen : Screen

@@ -6,10 +6,12 @@ Add a transaction by speaking it, e.g. _"spent 25 on coffee"_, _"received salary
 
 1. **"+" → "Add by voice"** (`feature/main/.../MainBottomBar.kt`) starts the voice command.
 2. **Speech → text:** `VoiceTransactionHost` launches the device's speech recognizer (`RecognizerIntent.ACTION_RECOGNIZE_SPEECH`). Free, no `RECORD_AUDIO` permission - the system recognizer owns the mic. The language comes from **Settings → Voice commands → Voice language** (`VoiceLanguage`: phone language, English, Arabic (Egypt), Arabic (Saudi Arabia)) via `EXTRA_LANGUAGE`.
-3. **Text → draft:** `VoiceTransactionParser` turns the text into a `VoiceTransactionDraft`:
+3. **Text → drafts:** `VoiceTransactionParser` turns the text into one `VoiceTransactionDraft` per transaction mentioned ("spent 50 on food and 20 on coffee, then transferred 500 from Cash to Bank"):
    - with an AI provider configured → `LlmVoiceTransactionParser` (any language)
    - without one, or if the AI request fails → `LocalVoiceTransactionParser` (offline, English and Arabic)
-4. **Draft → confirmation:** `EditTransactionScreen` opens pre-filled (`amount`, `title`, `dateTime`, `accountId`, `toAccountId`, `categoryId`). The user reviews and saves - nothing is saved automatically, and the existing save logic (validation, loans, exchange rates, widgets) is reused.
+4. **Drafts → confirmation** - nothing is saved automatically:
+   - one transaction: `EditTransactionScreen` opens pre-filled (`amount`, `title`, `dateTime`, `accountId`, `toAccountId`, `categoryId`) and its existing save logic is reused.
+   - several transactions: `VoiceTransactionsReviewScreen` (`review/`) lists them as a checklist. Each card shows the type, date, amount and account(s); all of them can be edited (date picker, account dropdowns, the received amount for transfers between currencies). **Save** stores the checked ones with `VoiceTransactionsSaver` (`TransactionRepository.saveMany` + balance widget refresh). Transfers between currencies are converted with the app's exchange rates (`CurrencyConverter`) and the received amount can be edited.
 
 ## AI providers
 
@@ -26,6 +28,11 @@ Configured in **Settings → Voice commands** (`VoiceCommandsSettingsScreen`): a
 - `VoiceApiKeysRepository` stores keys, models and the active provider in `EncryptedSharedPreferences` (Android Keystore). The app has `allowBackup="false"`, so keys never leave the device. A saved key is only shown masked (`••••abcd`).
 - `LlmClient` calls the providers with the app's Ktor client. The API key goes in a header, never in the URL, so it isn't logged.
 - The prompt includes the user's category and account names; the response is mapped back to IDs with `NameMatcher` (case- and diacritics-insensitive). Unknown names, future dates and invalid types are dropped.
+
+## Several transactions in one command
+
+- **Offline:** the text is split at "and", "then", "also", commas, sentence ends, "و", "ثم", "وبعدين" and "و" attached to a verb ("وصرفت"). Parts without an amount stay with the previous transaction ("on food and drinks"). A transaction that doesn't say its type, date or account takes them from the one before ("spent 50 on food from cash yesterday and 20 on coffee").
+- **AI:** the model returns `{"transactions": [...]}`; a single object is accepted too, and items without an amount are dropped.
 
 ## Offline parser
 

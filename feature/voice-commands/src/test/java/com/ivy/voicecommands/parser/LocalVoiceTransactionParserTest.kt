@@ -18,7 +18,7 @@ class LocalVoiceTransactionParserTest {
 
     private val parser = LocalVoiceTransactionParser()
 
-    private fun parse(text: String): Either<VoiceParseError, VoiceTransactionDraft> = parser.parse(
+    private fun parse(text: String): Either<VoiceParseError, List<VoiceTransactionDraft>> = parser.parse(
         VoiceParserInput(
             text = text,
             categories = listOf(food, fastFood, coffee, groceries, cafe),
@@ -28,7 +28,7 @@ class LocalVoiceTransactionParserTest {
     )
 
     private fun parseDraft(text: String): VoiceTransactionDraft =
-        parse(text).shouldBeInstanceOf<Either.Right<VoiceTransactionDraft>>().value
+        parse(text).shouldBeInstanceOf<Either.Right<List<VoiceTransactionDraft>>>().value.single()
 
     @Test
     fun `simple expense`() {
@@ -137,7 +137,7 @@ class LocalVoiceTransactionParserTest {
         val accounts = listOf(account("💵 Cash"), account("Bank Misr"), account("Saving"), account("CIB Credit Card"))
         fun parseWith(text: String): VoiceTransactionDraft = parser.parse(
             VoiceParserInput(text = text, categories = emptyList(), accounts = accounts, today = Today)
-        ).shouldBeInstanceOf<Either.Right<VoiceTransactionDraft>>().value
+        ).shouldBeInstanceOf<Either.Right<List<VoiceTransactionDraft>>>().value.single()
 
         val transfer = parseWith("Transfer 500 from Bank Misr to my savings account")
         transfer.type shouldBe TransactionType.TRANSFER

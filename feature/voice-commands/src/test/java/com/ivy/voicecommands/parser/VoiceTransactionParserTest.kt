@@ -64,7 +64,7 @@ class VoiceTransactionParserTest {
 
         val result = parser.parse("spent 25 on coffee").getOrNull()
 
-        result?.draft?.amount?.value shouldBe 25.0
+        result?.drafts?.single()?.amount?.value shouldBe 25.0
         result?.aiError shouldBe null
         coVerify(exactly = 0) { llmParser.parse(any(), any()) }
     }
@@ -72,9 +72,11 @@ class VoiceTransactionParserTest {
     @Test
     fun `uses the AI provider when configured`() = runTest {
         coEvery { apiKeysRepository.findActiveConfig() } returns Either.Right(config)
-        coEvery { llmParser.parse(config, any()) } returns Either.Right(aiDraft)
+        coEvery { llmParser.parse(config, any()) } returns Either.Right(listOf(aiDraft))
 
-        parser.parse("got 42") shouldBe Either.Right(VoiceParseResult(draft = aiDraft, aiError = null))
+        parser.parse("got 42") shouldBe Either.Right(
+            VoiceParseResult(drafts = listOf(aiDraft), aiError = null)
+        )
     }
 
     @Test
@@ -84,7 +86,7 @@ class VoiceTransactionParserTest {
 
         val result = parser.parse("spent 25 on coffee").getOrNull()
 
-        result?.draft?.amount?.value shouldBe 25.0
+        result?.drafts?.single()?.amount?.value shouldBe 25.0
         result?.aiError shouldBe "Groq: Invalid API Key"
     }
 

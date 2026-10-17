@@ -18,7 +18,7 @@ class ArabicVoiceCommandsTest {
 
     private val parser = LocalVoiceTransactionParser()
 
-    private fun parse(text: String): Either<VoiceParseError, VoiceTransactionDraft> = parser.parse(
+    private fun parse(text: String): Either<VoiceParseError, List<VoiceTransactionDraft>> = parser.parse(
         VoiceParserInput(
             text = text,
             categories = listOf(food, coffee),
@@ -28,7 +28,7 @@ class ArabicVoiceCommandsTest {
     )
 
     private fun parseDraft(text: String): VoiceTransactionDraft =
-        parse(text).shouldBeInstanceOf<Either.Right<VoiceTransactionDraft>>().value
+        parse(text).shouldBeInstanceOf<Either.Right<List<VoiceTransactionDraft>>>().value.single()
 
     @Test
     fun `expense with Arabic-Indic digits, category and yesterday`() {

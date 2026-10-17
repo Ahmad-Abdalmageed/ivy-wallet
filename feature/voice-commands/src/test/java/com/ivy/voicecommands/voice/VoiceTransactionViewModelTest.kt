@@ -7,6 +7,7 @@ import com.ivy.data.model.primitive.NotBlankTrimmedString
 import com.ivy.data.model.primitive.PositiveDouble
 import com.ivy.navigation.EditTransactionScreen
 import com.ivy.navigation.Navigation
+import com.ivy.navigation.VoiceTransactionsReviewScreen
 import com.ivy.ui.testing.ComposeViewModelTest
 import com.ivy.ui.testing.runTest
 import com.ivy.voicecommands.VoiceApiKeysRepository
@@ -15,6 +16,7 @@ import com.ivy.voicecommands.parser.VoiceParseError
 import com.ivy.voicecommands.parser.VoiceParseResult
 import com.ivy.voicecommands.parser.VoiceTransactionDraft
 import com.ivy.voicecommands.parser.VoiceTransactionParser
+import com.ivy.voicecommands.review.PendingVoiceTransactions
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
 import io.mockk.every
@@ -29,6 +31,7 @@ class VoiceTransactionViewModelTest : ComposeViewModelTest() {
     private val parser = mockk<VoiceTransactionParser>()
     private val timeProvider = mockk<TimeProvider>()
     private val settingsRepository = mockk<VoiceApiKeysRepository>()
+    private val pendingTransactions = PendingVoiceTransactions()
     private lateinit var navigation: Navigation
     private lateinit var viewModel: VoiceTransactionViewModel
 
@@ -48,13 +51,13 @@ class VoiceTransactionViewModelTest : ComposeViewModelTest() {
         every { timeProvider.getZoneId() } returns ZoneOffset.UTC
         coEvery { settingsRepository.findLanguage() } returns Either.Right(VoiceLanguage.Device)
         navigation = Navigation()
-        viewModel = VoiceTransactionViewModel(parser, navigation, timeProvider, settingsRepository)
+        viewModel = VoiceTransactionViewModel(parser, navigation, timeProvider, settingsRepository, pendingTransactions)
     }
 
     @Test
     fun `opens the pre-filled edit transaction screen`() {
         coEvery { parser.parse("spent 25 on coffee") } returns Either.Right(
-            VoiceParseResult(draft = draft, aiError = null)
+            VoiceParseResult(drafts = listOf(draft), aiError = null)
         )
 
         viewModel.runTest(
@@ -75,7 +78,7 @@ class VoiceTransactionViewModelTest : ComposeViewModelTest() {
     @Test
     fun `shows the AI error before opening the screen`() {
         coEvery { parser.parse(any()) } returns Either.Right(
-            VoiceParseResult(draft = draft, aiError = "Invalid API key")
+            VoiceParseResult(drafts = listOf(draft), aiError = "Invalid API key")
         )
 
         viewModel.runTest(
@@ -87,6 +90,20 @@ class VoiceTransactionViewModelTest : ComposeViewModelTest() {
 
         viewModel.onEvent(VoiceTransactionEvent.OnMessageShown)
         (navigation.currentScreen as? EditTransactionScreen)?.amount shouldBe 25.0
+    }
+
+    @Test
+    fun `several transactions open the review screen`() {
+        val drafts = listOf(draft, draft.copy(amount = PositiveDouble.unsafe(10.0)))
+        coEvery { parser.parse(any()) } returns Either.Right(VoiceParseResult(drafts = drafts, aiError = null))
+
+        viewModel.runTest(
+            events = listOf(VoiceTransactionEvent.OnSpeechResult("spent 25 on coffee and 10 on tea"))
+        ) {
+            message shouldBe null
+        }
+        navigation.currentScreen shouldBe VoiceTransactionsReviewScreen
+        pendingTransactions.drafts shouldBe drafts
     }
 
     @Test

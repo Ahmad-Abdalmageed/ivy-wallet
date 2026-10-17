@@ -461,4 +461,18 @@
     <string name="voice_command_unavailable">التعرف على الكلام غير متاح على هذا الجهاز</string>
     <string name="voice_command_no_amount">لم يتم العثور على مبلغ. جرّب مثلاً \"صرفت 50 على الأكل\"</string>
     <string name="voice_command_used_offline_parser">فشل الذكاء الاصطناعي (%1$s)، تم استخدام المحلل بدون إنترنت</string>
+    <string name="voice_review_title">مراجعة المعاملات</string>
+    <string name="voice_review_description">حدد المعاملات التي تريد حفظها. اضغط على النوع أو التاريخ أو المبلغ أو الحساب لتعديله.</string>
+    <string name="voice_review_select_all">تحديد الكل</string>
+    <string name="voice_review_deselect_all">إلغاء تحديد الكل</string>
+    <string name="voice_review_save">حفظ (%1$d)</string>
+    <string name="voice_review_saved">تم حفظ %1$d من المعاملات</string>
+    <string name="voice_review_amount">المبلغ</string>
+    <string name="voice_review_from_account">من حساب</string>
+    <string name="voice_review_to_account">إلى حساب</string>
+    <string name="voice_review_to_amount">المبلغ المستلم</string>
+    <string name="voice_review_error_amount">أدخل المبلغ</string>
+    <string name="voice_review_error_account">اختر الحساب</string>
+    <string name="voice_review_error_to_account">اختر الحساب المستلم</string>
+    <string name="voice_review_error_same_accounts">اختر حسابين مختلفين</string>
 </resources>
