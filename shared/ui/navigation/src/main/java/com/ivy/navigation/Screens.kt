@@ -4,6 +4,7 @@ import com.ivy.base.legacy.Transaction
 import com.ivy.base.model.TransactionType
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import java.time.Instant
 import java.util.UUID
 
 data object MainScreen : Screen {
@@ -28,7 +29,16 @@ data class EditTransactionScreen(
     val type: TransactionType,
     // extras
     val accountId: UUID? = null,
-    val categoryId: UUID? = null
+    val categoryId: UUID? = null,
+    // pre-filled values for new transactions (e.g. from a voice command)
+    @Suppress("DataClassDefaultValues", "DataClassTypedIDs")
+    val toAccountId: UUID? = null,
+    @Suppress("DataClassDefaultValues")
+    val amount: Double? = null,
+    @Suppress("DataClassDefaultValues")
+    val title: String? = null,
+    @Suppress("DataClassDefaultValues")
+    val dateTime: Instant? = null,
 ) : Screen {
     override val isLegacy: Boolean
         get() = true
@@ -141,6 +151,10 @@ data object AttributionsScreen : Screen
 data object ContributorsScreen : Screen
 
 data object ReleasesScreen : Screen
+
+data object VoiceCommandsSettingsScreen : Screen
+
+data object VoiceTransactionsReviewScreen : Screen
 
 data object DisclaimerScreen : Screen
 

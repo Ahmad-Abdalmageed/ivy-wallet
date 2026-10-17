@@ -22,6 +22,7 @@ import com.ivy.navigation.EditPlannedScreen
 import com.ivy.navigation.EditTransactionScreen
 import com.ivy.navigation.MainScreen
 import com.ivy.navigation.navigation
+import com.ivy.voicecommands.voice.VoiceTransactionHost
 import com.ivy.wallet.domain.deprecated.logic.model.CreateAccountData
 import com.ivy.wallet.ui.theme.modal.edit.AccountModal
 import com.ivy.wallet.ui.theme.modal.edit.AccountModalData
@@ -68,51 +69,54 @@ private fun BoxWithConstraintsScope.UI(
     var accountModalData: AccountModalData? by remember { mutableStateOf(null) }
 
     val nav = navigation()
-    BottomBar(
-        tab = tab,
-        selectTab = selectTab,
+    VoiceTransactionHost { onStartVoiceCommand ->
+        BottomBar(
+            tab = tab,
+            selectTab = selectTab,
 
-        onAddIncome = {
-            nav.navigateTo(
-                EditTransactionScreen(
-                    initialTransactionId = null,
-                    type = TransactionType.INCOME
+            onAddIncome = {
+                nav.navigateTo(
+                    EditTransactionScreen(
+                        initialTransactionId = null,
+                        type = TransactionType.INCOME
+                    )
                 )
-            )
-        },
-        onAddExpense = {
-            nav.navigateTo(
-                EditTransactionScreen(
-                    initialTransactionId = null,
-                    type = TransactionType.EXPENSE
+            },
+            onAddExpense = {
+                nav.navigateTo(
+                    EditTransactionScreen(
+                        initialTransactionId = null,
+                        type = TransactionType.EXPENSE
+                    )
                 )
-            )
-        },
-        onAddTransfer = {
-            nav.navigateTo(
-                EditTransactionScreen(
-                    initialTransactionId = null,
-                    type = TransactionType.TRANSFER
+            },
+            onAddTransfer = {
+                nav.navigateTo(
+                    EditTransactionScreen(
+                        initialTransactionId = null,
+                        type = TransactionType.TRANSFER
+                    )
                 )
-            )
-        },
-        onAddPlannedPayment = {
-            nav.navigateTo(
-                EditPlannedScreen(
-                    type = TransactionType.EXPENSE,
-                    plannedPaymentRuleId = null
+            },
+            onAddPlannedPayment = {
+                nav.navigateTo(
+                    EditPlannedScreen(
+                        type = TransactionType.EXPENSE,
+                        plannedPaymentRuleId = null
+                    )
                 )
-            )
-        },
+            },
+            onAddByVoice = onStartVoiceCommand,
 
-        showAddAccountModal = {
-            accountModalData = AccountModalData(
-                account = null,
-                balance = 0.0,
-                baseCurrency = baseCurrency
-            )
-        }
-    )
+            showAddAccountModal = {
+                accountModalData = AccountModalData(
+                    account = null,
+                    balance = 0.0,
+                    baseCurrency = baseCurrency
+                )
+            }
+        )
+    }
 
     AccountModal(
         modal = accountModalData,
