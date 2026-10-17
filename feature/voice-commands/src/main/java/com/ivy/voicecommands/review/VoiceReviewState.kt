@@ -36,6 +36,8 @@ data class VoiceReviewItem(
     val error: ReviewError?,
 )
 
+// Refers to an existing account, it doesn't need an ID type of its own
+@Suppress("DataClassTypedIDs")
 @Immutable
 data class ReviewAccount(
     val id: AccountId,
