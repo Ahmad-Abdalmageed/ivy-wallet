@@ -20,20 +20,37 @@ class VoiceCommandsSettingsViewModelTest : ComposeViewModelTest() {
     @Before
     fun setup() {
         coEvery { repository.findKey(any()) } returns Either.Right(null)
+        coEvery { repository.findModel(any()) } returns Either.Right(null)
+        coEvery { repository.findActiveProvider() } returns Either.Right(null)
+        coEvery { repository.saveKey(any(), any()) } returns Either.Right(Unit)
+        coEvery { repository.saveModel(any(), any()) } returns Either.Right(Unit)
+        coEvery { repository.saveActiveProvider(any()) } returns Either.Right(Unit)
         viewModel = VoiceCommandsSettingsViewModel(repository)
     }
 
+    private fun VoiceCommandsSettingsState.of(provider: VoiceApiProvider): ApiKeyState =
+        apiKeys.first { it.provider == provider }
+
     @Test
-    fun `shows a masked hint for saved keys`() {
+    fun `shows saved keys masked, models and the active provider`() {
         // given
         coEvery {
             repository.findKey(VoiceApiProvider.OpenAI)
         } returns Either.Right(NotBlankTrimmedString.unsafe("sk-123abcd"))
+        coEvery {
+            repository.findModel(VoiceApiProvider.OpenAI)
+        } returns Either.Right(NotBlankTrimmedString.unsafe("gpt-5.4-nano"))
+        coEvery { repository.findActiveProvider() } returns Either.Right(VoiceApiProvider.OpenAI)
 
         // then
         viewModel.runTest {
-            apiKeys.first { it.provider == VoiceApiProvider.OpenAI }.savedKeyHint shouldBe "••••abcd"
-            apiKeys.first { it.provider == VoiceApiProvider.Anthropic }.savedKeyHint shouldBe null
+            val openAi = of(VoiceApiProvider.OpenAI)
+            openAi.savedKeyHint shouldBe "••••abcd"
+            openAi.model shouldBe "gpt-5.4-nano"
+            openAi.active shouldBe true
+            of(VoiceApiProvider.Google).savedKeyHint shouldBe null
+            of(VoiceApiProvider.Google).hasFreeTier shouldBe true
+            of(VoiceApiProvider.Google).active shouldBe false
         }
     }
 
@@ -45,66 +62,96 @@ class VoiceCommandsSettingsViewModelTest : ComposeViewModelTest() {
                 VoiceCommandsSettingsEvent.OnSaveClick(VoiceApiProvider.OpenAI),
             )
         ) {
-            apiKeys.first { it.provider == VoiceApiProvider.OpenAI }.error shouldBe
-                "API key can't be empty"
+            of(VoiceApiProvider.OpenAI).error shouldBe "API key can't be empty"
         }
         coVerify(exactly = 0) { repository.saveKey(any(), any()) }
     }
 
     @Test
-    fun `saving a key trims it, stores it and clears the input`() {
-        // given
-        coEvery { repository.saveKey(any(), any()) } returns Either.Right(Unit)
-
-        // then
+    fun `saving the first key trims it and makes the provider active`() {
         viewModel.runTest(
             events = listOf(
                 VoiceCommandsSettingsEvent.OnInputChange(VoiceApiProvider.Anthropic, " sk-ant-9876 "),
+                VoiceCommandsSettingsEvent.OnModelChange(VoiceApiProvider.Anthropic, "claude-haiku-5-5"),
                 VoiceCommandsSettingsEvent.OnSaveClick(VoiceApiProvider.Anthropic),
             )
         ) {
-            val apiKey = apiKeys.first { it.provider == VoiceApiProvider.Anthropic }
+            val apiKey = of(VoiceApiProvider.Anthropic)
             apiKey.savedKeyHint shouldBe "••••9876"
             apiKey.input shouldBe ""
+            apiKey.active shouldBe true
             apiKey.error shouldBe null
         }
         coVerify {
-            repository.saveKey(
+            repository.saveKey(VoiceApiProvider.Anthropic, NotBlankTrimmedString.unsafe("sk-ant-9876"))
+            repository.saveModel(
                 VoiceApiProvider.Anthropic,
-                NotBlankTrimmedString.unsafe("sk-ant-9876")
+                NotBlankTrimmedString.unsafe("claude-haiku-5-5")
             )
+            repository.saveActiveProvider(VoiceApiProvider.Anthropic)
         }
     }
 
     @Test
-    fun `removing a key clears the saved hint`() {
-        // given
+    fun `a blank model uses the default one`() {
         coEvery {
             repository.findKey(VoiceApiProvider.Google)
         } returns Either.Right(NotBlankTrimmedString.unsafe("google-key"))
+
+        viewModel.runTest(
+            events = listOf(
+                VoiceCommandsSettingsEvent.OnModelChange(VoiceApiProvider.Google, " "),
+                VoiceCommandsSettingsEvent.OnSaveClick(VoiceApiProvider.Google),
+            )
+        ) {
+            of(VoiceApiProvider.Google).defaultModel shouldBe "gemini-flash-latest"
+        }
+        coVerify { repository.saveModel(VoiceApiProvider.Google, null) }
+    }
+
+    @Test
+    fun `use switches the active provider`() {
+        coEvery {
+            repository.findKey(VoiceApiProvider.Groq)
+        } returns Either.Right(NotBlankTrimmedString.unsafe("groq-key"))
+        coEvery { repository.findActiveProvider() } returns Either.Right(VoiceApiProvider.OpenAI)
+
+        viewModel.runTest(
+            events = listOf(VoiceCommandsSettingsEvent.OnUseClick(VoiceApiProvider.Groq))
+        ) {
+            of(VoiceApiProvider.Groq).active shouldBe true
+            of(VoiceApiProvider.OpenAI).active shouldBe false
+        }
+    }
+
+    @Test
+    fun `removing the active key clears the active provider`() {
+        coEvery {
+            repository.findKey(VoiceApiProvider.Google)
+        } returns Either.Right(NotBlankTrimmedString.unsafe("google-key"))
+        coEvery { repository.findActiveProvider() } returns Either.Right(VoiceApiProvider.Google)
         coEvery { repository.removeKey(VoiceApiProvider.Google) } returns Either.Right(Unit)
 
-        // then
         viewModel.runTest(
             events = listOf(VoiceCommandsSettingsEvent.OnRemoveClick(VoiceApiProvider.Google))
         ) {
-            apiKeys.first { it.provider == VoiceApiProvider.Google }.savedKeyHint shouldBe null
+            of(VoiceApiProvider.Google).savedKeyHint shouldBe null
+            of(VoiceApiProvider.Google).active shouldBe false
         }
+        coVerify { repository.saveActiveProvider(null) }
     }
 
     @Test
     fun `a storage failure is shown as an error`() {
-        // given
         coEvery { repository.saveKey(any(), any()) } returns Either.Left("Keystore unavailable")
 
-        // then
         viewModel.runTest(
             events = listOf(
                 VoiceCommandsSettingsEvent.OnInputChange(VoiceApiProvider.OpenAI, "sk-1"),
                 VoiceCommandsSettingsEvent.OnSaveClick(VoiceApiProvider.OpenAI),
             )
         ) {
-            val apiKey = apiKeys.first { it.provider == VoiceApiProvider.OpenAI }
+            val apiKey = of(VoiceApiProvider.OpenAI)
             apiKey.error shouldBe "Keystore unavailable"
             apiKey.savedKeyHint shouldBe null
         }

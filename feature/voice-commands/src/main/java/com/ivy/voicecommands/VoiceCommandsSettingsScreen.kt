@@ -120,15 +120,29 @@ private fun ApiKeyCard(
 ) {
     OutlinedCard(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    modifier = Modifier.weight(1f),
+                    text = apiKey.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                if (apiKey.hasFreeTier) {
+                    Text(
+                        text = stringResource(R.string.voice_commands_free_tier),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
             Text(
-                text = apiKey.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = apiKey.savedKeyHint?.let {
-                    stringResource(R.string.api_key_saved, it)
-                } ?: stringResource(R.string.api_key_not_set),
+                text = when {
+                    apiKey.active && apiKey.savedKeyHint != null ->
+                        stringResource(R.string.voice_commands_in_use, apiKey.savedKeyHint)
+
+                    apiKey.savedKeyHint != null -> stringResource(R.string.api_key_saved, apiKey.savedKeyHint)
+                    else -> stringResource(R.string.api_key_not_set)
+                },
                 style = MaterialTheme.typography.bodySmall
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -138,11 +152,29 @@ private fun ApiKeyCard(
                     onEvent(VoiceCommandsSettingsEvent.OnInputChange(apiKey.provider, it))
                 }
             )
+            OutlinedTextField(
+                modifier = Modifier.fillMaxWidth(),
+                value = apiKey.model,
+                onValueChange = {
+                    onEvent(VoiceCommandsSettingsEvent.OnModelChange(apiKey.provider, it))
+                },
+                singleLine = true,
+                label = { Text(text = stringResource(R.string.voice_commands_model)) },
+                placeholder = { Text(text = apiKey.defaultModel) },
+                keyboardOptions = KeyboardOptions(autoCorrect = false)
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
             ) {
+                if (apiKey.savedKeyHint != null && !apiKey.active) {
+                    OutlinedButton(onClick = {
+                        onEvent(VoiceCommandsSettingsEvent.OnUseClick(apiKey.provider))
+                    }) {
+                        Text(text = stringResource(R.string.voice_commands_use))
+                    }
+                }
                 if (apiKey.savedKeyHint != null) {
                     OutlinedButton(onClick = {
                         onEvent(VoiceCommandsSettingsEvent.OnRemoveClick(apiKey.provider))
@@ -151,7 +183,7 @@ private fun ApiKeyCard(
                     }
                 }
                 Button(
-                    enabled = apiKey.input.isNotBlank(),
+                    enabled = apiKey.input.isNotBlank() || apiKey.savedKeyHint != null,
                     onClick = {
                         onEvent(VoiceCommandsSettingsEvent.OnSaveClick(apiKey.provider))
                     }
@@ -210,22 +242,34 @@ private fun PreviewVoiceCommandsSettings(isDark: Boolean = false) {
                     ApiKeyState(
                         provider = VoiceApiProvider.OpenAI,
                         title = "OpenAI",
+                        hasFreeTier = false,
                         input = "",
                         savedKeyHint = "••••abcd",
+                        model = "",
+                        defaultModel = VoiceApiProvider.OpenAI.defaultModel,
+                        active = true,
                         error = null,
                     ),
                     ApiKeyState(
                         provider = VoiceApiProvider.Anthropic,
                         title = "Anthropic",
+                        hasFreeTier = false,
                         input = "sk-ant-123",
                         savedKeyHint = null,
+                        model = "claude-haiku-5-5",
+                        defaultModel = VoiceApiProvider.Anthropic.defaultModel,
+                        active = false,
                         error = null,
                     ),
                     ApiKeyState(
                         provider = VoiceApiProvider.Google,
-                        title = "Google",
+                        title = "Google Gemini",
+                        hasFreeTier = true,
                         input = " ",
                         savedKeyHint = null,
+                        model = "",
+                        defaultModel = VoiceApiProvider.Google.defaultModel,
+                        active = false,
                         error = "API key can't be empty",
                     ),
                 )

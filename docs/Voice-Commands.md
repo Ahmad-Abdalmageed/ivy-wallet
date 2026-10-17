@@ -2,97 +2,53 @@
 
 Add a transaction by speaking it, e.g. _"spent 25 on coffee"_, _"received salary 3000"_, _"transfer 100 from Cash to Bank"_.
 
-## Approach
-
-The feature has two independent parts:
-
-1. **Speech → text** (device IO)
-2. **Text → transaction draft** (pure, unit-testable logic)
-
-### Speech → text
-
-Use `RecognizerIntent.ACTION_RECOGNIZE_SPEECH` via `rememberLauncherForActivityResult(StartActivityForResult())`.
-
-- No new dependency, works on min SDK 28.
-- No `RECORD_AUDIO` permission - the system recognizer owns the mic and its UI.
-- `EXTRA_PREFER_OFFLINE = true` keeps recognition on-device where supported.
-- Hide the entry point when no recognizer is available (`SpeechRecognizer.isRecognitionAvailable`, `ActivityNotFoundException`).
-- Ignore `RESULT_CANCELED` and empty `EXTRA_RESULTS`.
-
-Rejected: recording audio and sending it to a cloud STT/LLM. Ivy Wallet is offline-first without a backend - that would require API keys, network and sending financial data off-device.
-
-### Text → transaction draft
-
-A local rule-based `VoiceTransactionParser` that returns `Either<VoiceParseError, VoiceTransactionDraft>`:
-
-- **Amount:** first number token (`25`, `25.50`, `25,50`, `$25`, `25 dollars`) → `PositiveDouble`, otherwise `Left(NoAmount)`.
-- **Type:** keyword sets - expense (spent, paid, bought), income (received, salary, earned), transfer (transfer, "from X to Y"). Defaults to expense.
-- **Category / account:** case-insensitive match against `CategoryRepository.findAll()` and `AccountRepository.findAll()` names.
-- **Date:** "today", "yesterday", weekday names; otherwise `null` (defaults to now).
-- **Title:** the remaining text after removing amount, keywords and matched names.
-
-```kotlin
-sealed interface VoiceTransactionDraft {
-    val amount: PositiveDouble
-    val title: NotBlankTrimmedString?
-    val time: Instant?
-
-    data class Expense(..., val account: AccountId?, val category: CategoryId?) : VoiceTransactionDraft
-    data class Income(..., val account: AccountId?, val category: CategoryId?) : VoiceTransactionDraft
-    data class Transfer(..., val from: AccountId?, val to: AccountId?) : VoiceTransactionDraft
-}
-```
-
-Keep the matching logic a pure function of `(text, categories, accounts, now)` so it's tested without fakes.
-
-### API keys
-
-Cloud providers (speech-to-text or LLM parsing) need the user's own API key. **Settings → Voice commands** (`feature/voice-commands`) lets the user enter, replace and delete a key per provider (`VoiceApiProvider`: OpenAI, Anthropic, Google).
-
-- Keys are stored in `EncryptedSharedPreferences` (AES-256, Android Keystore-backed) by `VoiceApiKeysRepository`; the app has `allowBackup="false"`, so they never leave the device.
-- The screen never displays a saved key - only a masked hint (`••••abcd`).
-- `VoiceApiKeysRepository.findKey(provider)` is the read API for the voice command pipeline.
-
 ## Flow
 
-Voice recognition is error-prone, so the draft **pre-fills the existing editor** instead of saving directly. This reuses the validation, loans, exchange rates and widget refresh logic in `EditTransactionViewModel.saveInternal`.
+1. **"+" → "Add by voice"** (`feature/main/.../MainBottomBar.kt`) starts the voice command.
+2. **Speech → text:** `VoiceTransactionHost` launches the device's speech recognizer (`RecognizerIntent.ACTION_RECOGNIZE_SPEECH`). Free, no `RECORD_AUDIO` permission - the system recognizer owns the mic.
+3. **Text → draft:** `VoiceTransactionParser` turns the text into a `VoiceTransactionDraft`:
+   - with an AI provider configured → `LlmVoiceTransactionParser` (any language)
+   - without one, or if the AI request fails → `LocalVoiceTransactionParser` (offline, English)
+4. **Draft → confirmation:** `EditTransactionScreen` opens pre-filled (`amount`, `title`, `dateTime`, `accountId`, `toAccountId`, `categoryId`). The user reviews and saves - nothing is saved automatically, and the existing save logic (validation, loans, exchange rates, widgets) is reused.
 
-1. Mic button in the expanded FAB menu (`feature/main/.../MainBottomBar.kt`), passed down like `onAddExpense`.
-2. `MainScreen` launches the recognizer and sends the text to its VM.
-3. VM calls `VoiceTransactionParser.parse(text)`: `Left` → toast, `Right` → navigate.
-4. Extend `EditTransactionScreen` (`shared/ui/navigation/.../Screens.kt`) with optional `amount`, `title`, `dateTime`, `toAccountId` extras (next to the existing `accountId` / `categoryId`).
-5. `EditTransactionViewModel.start()` applies them for new transactions and sets `hasChanges = true`.
+## AI providers
 
-Optional: a "Voice" launcher shortcut in `app/src/main/res/xml/shortcuts.xml`.
+Configured in **Settings → Voice commands** (`VoiceCommandsSettingsScreen`): an API key and an optional model per provider, and which provider is in use.
 
-## Module
+| Provider | Default model | Free tier | API |
+|---|---|---|---|
+| Google Gemini | `gemini-flash-latest` | Yes | `generateContent`, `responseMimeType: application/json` |
+| Groq | `openai/gpt-oss-20b` | Yes | OpenAI-compatible Chat Completions, JSON mode |
+| OpenAI | `gpt-5.4-mini` | No | Chat Completions, JSON mode |
+| Anthropic Claude | `claude-opus-5-5` | No | Messages API, structured outputs (`output_config.format`), `effort: low`, server-side refusal fallbacks |
 
-```
-feature/voice-transaction/            namespace com.ivy.voicetransaction
-  VoiceTransactionDraft.kt
-  VoiceParseError.kt                  sealed: NoAmount, Blank
-  VoiceTransactionParser.kt
-  VoiceInputButton.kt                 launcher + availability check
-  test/VoiceTransactionParserTest.kt
-  test/VoiceInputButtonPaparazziTest.kt
-```
+- Model IDs change often, so the model is editable; a blank model uses the default.
+- `VoiceApiKeysRepository` stores keys, models and the active provider in `EncryptedSharedPreferences` (Android Keystore). The app has `allowBackup="false"`, so keys never leave the device. A saved key is only shown masked (`••••abcd`).
+- `LlmClient` calls the providers with the app's Ktor client. The API key goes in a header, never in the URL, so it isn't logged.
+- The prompt includes the user's category and account names; the response is mapped back to IDs with `NameMatcher` (case- and diacritics-insensitive). Unknown names, future dates and invalid types are dropped.
 
-- `settings.gradle.kts`: `include(":feature:voice-transaction")`
-- `feature/main/build.gradle.kts`: `implementation(projects.feature.voiceTransaction)`
+## Offline parser
 
-No new `Screen` or nav graph entry - the flow ends in `EditTransactionScreen`.
+`LocalVoiceTransactionParser` (rule-based, English):
 
-## Parser test cases
+- **Amount:** first number - `25`, `25.50`, `25,50`, `1,500.50`.
+- **Type:** transfer (`transfer`, `moved`, "from X to Y" with two accounts), income (`received`, `salary`, `earned`, `got paid`, ...), otherwise expense.
+- **Category / account:** names mentioned in the text; the longest matching category wins.
+- **Date:** `today`, `yesterday`, `day before yesterday`, `N days ago`, weekday names (the last one).
+- **Title:** what's left after removing amounts, keywords, account names and dates.
 
-- "spent 25 on coffee" → Expense 25, title "coffee"
-- "received salary 3000" → Income 3000
-- "transfer 100 from Cash to Bank" → Transfer Cash → Bank
-- "paid 12.50 for taxi yesterday" → time = yesterday
-- "25,50 groceries" → 25.5
-- "coffee" → `Left(NoAmount)`; "" → `Left(Blank)`
-- Category matching is case-insensitive
+## Errors
+
+- No speech recognizer on the device → toast.
+- No amount found → toast with an example.
+- AI request fails → falls back to the offline parser and shows the AI error; if the offline parser fails too, only the AI error is shown.
+
+## Tests
+
+`feature/voice-commands/src/test`: offline parser, LLM response mapping and prompt, AI/offline fallback, voice command and settings view-models.
 
 ## Limitations
 
-- Type/date keywords are English-only; other languages need per-locale keyword sets.
+- The offline parser understands English only; other languages need an AI provider.
 - Recognition quality and offline support depend on the device's speech service.
+- Free tiers are rate-limited and Google may use free-tier prompts to improve its products.

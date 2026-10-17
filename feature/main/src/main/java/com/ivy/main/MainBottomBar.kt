@@ -82,6 +82,7 @@ fun BoxWithConstraintsScope.BottomBar(
     onAddExpense: () -> Unit,
     onAddTransfer: () -> Unit,
     onAddPlannedPayment: () -> Unit,
+    onAddByVoice: () -> Unit,
 
     showAddAccountModal: () -> Unit,
 ) {
@@ -174,7 +175,11 @@ fun BoxWithConstraintsScope.BottomBar(
         onAddIncome = onAddIncome,
         onAddExpense = onAddExpense,
         onAddTransfer = onAddTransfer,
-        onAddPlannedPayment = onAddPlannedPayment
+        onAddPlannedPayment = onAddPlannedPayment,
+        onAddByVoice = {
+            expanded = false
+            onAddByVoice()
+        }
     )
 
     var dragOffset by remember {
@@ -277,6 +282,7 @@ private fun TransactionButtons(
     onAddExpense: () -> Unit,
     onAddTransfer: () -> Unit,
     onAddPlannedPayment: () -> Unit,
+    onAddByVoice: () -> Unit,
 ) {
     val ivyContext = ivyWalletCtx()
 
@@ -314,6 +320,12 @@ private fun TransactionButtons(
             onAddPlannedPayment()
         }
 
+        AddByVoiceButton(
+            buttonsShownPercent = buttonsShownPercent,
+            buttonCenterY = buttonCenterY,
+            onAddByVoice = onAddByVoice
+        )
+
         // Add INCOME ------------------------------------------------------------------------------
         AddIncomeButton(
             buttonsShownPercent = buttonsShownPercent,
@@ -348,6 +360,37 @@ private fun TransactionButtons(
             onAddTransfer = onAddTransfer
         )
         // Add TRANSFER ----------------------------------------------------------------------------
+    }
+}
+
+@Composable
+private fun AddByVoiceButton(
+    buttonsShownPercent: Float,
+    buttonCenterY: Float,
+    onAddByVoice: () -> Unit,
+) {
+    val ivyContext = ivyWalletCtx()
+    IvyOutlinedButton(
+        modifier = Modifier
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                layout(placeable.width, placeable.height) {
+                    // above the "Add planned payment" button
+                    placeable.place(
+                        x = ivyContext.screenWidth / 2 - placeable.width / 2,
+                        y = buttonCenterY.roundToInt() - 60.dp.roundToPx() -
+                            2 * placeable.height - FAB_BUTTON_SIZE.roundToPx()
+                    )
+                }
+            }
+            .padding(horizontal = 8.dp)
+            .alpha(buttonsShownPercent)
+            .zIndex(200f),
+        iconStart = R.drawable.ic_vue_media_microphone,
+        text = stringResource(R.string.add_by_voice),
+        solidBackground = true
+    ) {
+        onAddByVoice()
     }
 }
 

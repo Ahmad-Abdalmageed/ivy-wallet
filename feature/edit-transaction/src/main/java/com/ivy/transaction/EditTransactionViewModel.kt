@@ -172,10 +172,14 @@ class EditTransactionViewModel @Inject constructor(
                     screen = screen,
                     accounts = getAccounts
                 ),
+                // a transfer needs an amount, otherwise the exchange rate divides by zero
+                toAccountId = screen.toAccountId?.takeIf { screen.amount != null },
                 categoryId = screen.categoryId,
                 type = screen.type,
-                amount = BigDecimal.ZERO,
-                toAmount = BigDecimal.ZERO
+                title = screen.title,
+                dateTime = screen.dateTime,
+                amount = screen.amount?.toBigDecimal() ?: BigDecimal.ZERO,
+                toAmount = screen.amount?.toBigDecimal() ?: BigDecimal.ZERO
             )
 
             tags = tagList.await()
@@ -183,6 +187,10 @@ class EditTransactionViewModel @Inject constructor(
                 tagRepository.findByAssociatedId(AssociationId(loadedTransaction().id)).map(Tag::id)
                     .toImmutableList()
             display(loadedTransaction!!)
+            if (!editMode && screen.amount != null) {
+                // pre-filled (e.g. by a voice command) - ask before discarding it
+                hasChanges = true
+            }
         }
     }
 
