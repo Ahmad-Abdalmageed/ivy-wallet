@@ -3,6 +3,7 @@
 package com.ivy.voicecommands.review
 
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -274,7 +275,7 @@ private fun ReviewItemCard(
                 if (item.checked && item.error != null) {
                     Text(
                         modifier = Modifier.padding(top = 4.dp),
-                        text = errorText(item.error),
+                        text = stringResource(errorTextRes(item.error)),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -293,7 +294,7 @@ private fun TypeChip(
     Box {
         AssistChip(
             onClick = { expanded = true },
-            label = { Text(text = typeLabel(type), color = typeColor(type)) },
+            label = { Text(text = stringResource(typeLabelRes(type)), color = typeColor(type)) },
             leadingIcon = {
                 Icon(
                     modifier = Modifier.size(AssistChipDefaults.IconSize),
@@ -309,7 +310,7 @@ private fun TypeChip(
         ) {
             TransactionType.entries.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(text = typeLabel(option)) },
+                    text = { Text(text = stringResource(typeLabelRes(option))) },
                     leadingIcon = {
                         Icon(
                             painter = painterResource(typeIcon(option)),
@@ -336,7 +337,12 @@ private fun DateChip(
     Box {
         AssistChip(
             onClick = { pickerVisible = true },
-            label = { Text(text = dateLabel(date)) },
+            label = {
+                Text(
+                    text = relativeDayRes(date, today = LocalDate.now())?.let { stringResource(it) }
+                        ?: dateFormatter.format(date)
+                )
+            },
             leadingIcon = {
                 Icon(
                     modifier = Modifier.size(AssistChipDefaults.IconSize),
@@ -435,11 +441,11 @@ private fun AccountDropdown(
     }
 }
 
-@Composable
-private fun typeLabel(type: TransactionType): String = when (type) {
-    TransactionType.INCOME -> stringResource(R.string.income)
-    TransactionType.EXPENSE -> stringResource(R.string.expense)
-    TransactionType.TRANSFER -> stringResource(R.string.transfer)
+@StringRes
+private fun typeLabelRes(type: TransactionType): Int = when (type) {
+    TransactionType.INCOME -> R.string.income
+    TransactionType.EXPENSE -> R.string.expense
+    TransactionType.TRANSFER -> R.string.transfer
 }
 
 private fun typeIcon(type: TransactionType): Int = when (type) {
@@ -454,25 +460,21 @@ private fun typeColor(type: TransactionType): Color = when (type) {
     TransactionType.TRANSFER -> IvyColors.Purple.primary
 }
 
-@Composable
-private fun dateLabel(date: LocalDate): String {
-    val today = remember { LocalDate.now() }
-    return when (date) {
-        today -> stringResource(R.string.today)
-        today.minusDays(1) -> stringResource(R.string.yesterday)
-        else -> remember(date) {
-            DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).format(date)
-        }
-    }
+@StringRes
+private fun relativeDayRes(date: LocalDate, today: LocalDate): Int? = when (date) {
+    today -> R.string.today
+    today.minusDays(1) -> R.string.yesterday
+    else -> null
 }
 
-@Composable
-private fun errorText(error: ReviewError): String = when (error) {
-    ReviewError.Amount -> stringResource(R.string.voice_review_error_amount)
-    ReviewError.Account -> stringResource(R.string.voice_review_error_account)
-    ReviewError.ToAccount -> stringResource(R.string.voice_review_error_to_account)
-    ReviewError.SameAccounts -> stringResource(R.string.voice_review_error_same_accounts)
-    ReviewError.ToAmount -> stringResource(R.string.voice_review_error_amount)
+private val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+
+@StringRes
+private fun errorTextRes(error: ReviewError): Int = when (error) {
+    ReviewError.Amount, ReviewError.ToAmount -> R.string.voice_review_error_amount
+    ReviewError.Account -> R.string.voice_review_error_account
+    ReviewError.ToAccount -> R.string.voice_review_error_to_account
+    ReviewError.SameAccounts -> R.string.voice_review_error_same_accounts
 }
 
 private const val UncheckedAlpha = 0.6f
