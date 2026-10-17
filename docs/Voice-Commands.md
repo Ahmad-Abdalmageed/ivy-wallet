@@ -45,6 +45,14 @@ sealed interface VoiceTransactionDraft {
 
 Keep the matching logic a pure function of `(text, categories, accounts, now)` so it's tested without fakes.
 
+### API keys
+
+Cloud providers (speech-to-text or LLM parsing) need the user's own API key. **Settings → Voice commands** (`feature/voice-commands`) lets the user enter, replace and delete a key per provider (`VoiceApiProvider`: OpenAI, Anthropic, Google).
+
+- Keys are stored in `EncryptedSharedPreferences` (AES-256, Android Keystore-backed) by `VoiceApiKeysRepository`; the app has `allowBackup="false"`, so they never leave the device.
+- The screen never displays a saved key - only a masked hint (`••••abcd`).
+- `VoiceApiKeysRepository.findKey(provider)` is the read API for the voice command pipeline.
+
 ## Flow
 
 Voice recognition is error-prone, so the draft **pre-fills the existing editor** instead of saving directly. This reuses the validation, loans, exchange rates and widget refresh logic in `EditTransactionViewModel.saveInternal`.

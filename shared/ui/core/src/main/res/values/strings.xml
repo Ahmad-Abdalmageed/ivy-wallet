@@ -495,4 +495,9 @@
     <string name="bill_paid">Your bill for %1$s %2$s has been paid</string>
     <string name="language">Language</string>
     <string name="advanced_features">Advanced features</string>
+    <string name="voice_commands">Voice commands</string>
+    <string name="voice_commands_api_keys_description">API keys used by voice commands. They are stored encrypted on this device only.</string>
+    <string name="api_key">API key</string>
+    <string name="api_key_saved">Saved: %1$s</string>
+    <string name="api_key_not_set">Not set</string>
 </resources>

@@ -54,6 +54,7 @@ import com.ivy.navigation.FeaturesScreen
 import com.ivy.navigation.ImportScreen
 import com.ivy.navigation.Navigation
 import com.ivy.navigation.ReleasesScreen
+import com.ivy.navigation.VoiceCommandsSettingsScreen
 import com.ivy.navigation.navigation
 import com.ivy.navigation.screenScopedViewModel
 import com.ivy.ui.R
@@ -324,6 +325,16 @@ private fun BoxWithConstraintsScope.UI(
                 text = stringResource(R.string.exchange_rates),
             ) {
                 nav.navigateTo(ExchangeRatesScreen)
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            SettingsDefaultButton(
+                icon = R.drawable.ic_vue_security_key,
+                text = stringResource(R.string.voice_commands),
+                iconPadding = 8.dp
+            ) {
+                nav.navigateTo(VoiceCommandsSettingsScreen)
             }
 
             Spacer(Modifier.height(12.dp))
