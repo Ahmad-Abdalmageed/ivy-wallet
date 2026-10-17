@@ -33,7 +33,8 @@ Configured in **Settings → Voice commands** (`VoiceCommandsSettingsScreen`): a
 
 - **Amount:** first number - `25`, `25.50`, `25,50`, `1,500.50`.
 - **Type:** transfer (`transfer`, `moved`, "from X to Y" with two accounts), income (`received`, `salary`, `earned`, `got paid`, ...), otherwise expense.
-- **Category / account:** names mentioned in the text; the longest matching category wins.
+- **Accounts:** "from / using / with X" is the paying account, "to / into Y" the receiving one ("transfer 100 to savings" fills only the receiving account).
+- **Category / account matching** (`NameMatcher`): word-based and tolerant of how speech recognition writes names - case, emojis and punctuation are ignored, plurals match ("savings" ~ "Saving"), small misspellings of longer words match ("vodaphone" ~ "Vodafone"), spelled-out letters match acronyms ("c i b" ~ "CIB") and part of a name matches ("misr" ~ "Bank Misr") unless another name matches equally well ("bank" with "Bank Misr" and "Bank Alahly" selects nothing). The longest matching category wins.
 - **Date:** `today`, `yesterday`, `day before yesterday`, `N days ago`, weekday names (the last one).
 - **Title:** what's left after removing amounts, keywords, account names and dates.
 

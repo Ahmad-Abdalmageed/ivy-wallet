@@ -133,6 +133,52 @@ class LocalVoiceTransactionParserTest {
     }
 
     @Test
+    fun `transfer between accounts with names as spoken`() {
+        val accounts = listOf(account("💵 Cash"), account("Bank Misr"), account("Saving"), account("CIB Credit Card"))
+        fun parseWith(text: String): VoiceTransactionDraft = parser.parse(
+            VoiceParserInput(text = text, categories = emptyList(), accounts = accounts, today = Today)
+        ).shouldBeInstanceOf<Either.Right<VoiceTransactionDraft>>().value
+
+        val transfer = parseWith("Transfer 500 from Bank Misr to my savings account")
+        transfer.type shouldBe TransactionType.TRANSFER
+        transfer.account shouldBe accounts[1].id
+        transfer.toAccount shouldBe accounts[2].id
+        transfer.title shouldBe null
+
+        val acronym = parseWith("sent 200 from c i b card to cash")
+        acronym.type shouldBe TransactionType.TRANSFER
+        acronym.account shouldBe accounts[3].id
+        acronym.toAccount shouldBe accounts[0].id
+        acronym.title shouldBe null
+    }
+
+    @Test
+    fun `transfer with only the receiving account`() {
+        val draft = parseDraft("transfer 100 to bank")
+
+        draft.type shouldBe TransactionType.TRANSFER
+        draft.account shouldBe null
+        draft.toAccount shouldBe bank.id
+    }
+
+    @Test
+    fun `expense from an account and to a person`() {
+        val draft = parseDraft("paid 50 from cash to Ahmed")
+
+        draft.type shouldBe TransactionType.EXPENSE
+        draft.account shouldBe cash.id
+        draft.title?.value shouldBe "Ahmed"
+    }
+
+    @Test
+    fun `income into an account`() {
+        val draft = parseDraft("got paid 900 into bank")
+
+        draft.type shouldBe TransactionType.INCOME
+        draft.account shouldBe bank.id
+    }
+
+    @Test
     fun `no amount`() {
         parse("coffee") shouldBe Either.Left(VoiceParseError.NoAmount)
     }

@@ -32,9 +32,11 @@ class LocalVoiceTransactionParser @Inject constructor() {
                 ?.let { PositiveDouble.from(it).getOrNull() }
         ) { VoiceParseError.NoAmount }
 
-        val transferAccounts = transferAccounts(text, input.accounts)
+        val roles = accountRoles(text, input.accounts)
         val type = when {
-            transferAccounts != null || words.any { it in transferWords } -> TransactionType.TRANSFER
+            (roles.from != null && roles.to != null) || words.any { it in transferWords } ->
+                TransactionType.TRANSFER
+
             words.any { it in incomeWords } || incomePhrases.any { text.contains(it) } ->
                 TransactionType.INCOME
 
@@ -43,10 +45,14 @@ class LocalVoiceTransactionParser @Inject constructor() {
 
         val mentionedAccounts = NameMatcher.mentioned(text, input.accounts) { it.name.value }
         val (account, toAccount) = when (type) {
-            TransactionType.TRANSFER ->
-                transferAccounts ?: (mentionedAccounts.getOrNull(0) to mentionedAccounts.getOrNull(1))
+            TransactionType.TRANSFER -> {
+                val from = roles.from ?: mentionedAccounts.firstOrNull { it.id != roles.to?.id }
+                val to = roles.to ?: mentionedAccounts.firstOrNull { it.id != from?.id }
+                from to to
+            }
 
-            else -> mentionedAccounts.firstOrNull() to null
+            TransactionType.INCOME -> (roles.to ?: roles.from ?: mentionedAccounts.firstOrNull()) to null
+            TransactionType.EXPENSE -> (roles.from ?: mentionedAccounts.firstOrNull()) to null
         }
 
         val category = if (type == TransactionType.TRANSFER) {
@@ -67,19 +73,26 @@ class LocalVoiceTransactionParser @Inject constructor() {
         )
     }
 
+    private data class AccountRoles(
+        val from: Account?,
+        val to: Account?,
+    )
+
     /**
-     * Handles "from X to Y" where both X and Y are accounts.
+     * Finds the accounts mentioned after "from ..." and "to ..." (e.g. "from Cash to Bank").
      */
-    private fun transferAccounts(
+    private fun accountRoles(
         text: String,
         accounts: List<Account>,
-    ): Pair<Account, Account>? {
-        val match = fromToRegex.find(text)
-        val from = match?.let { NameMatcher.mentioned(it.groupValues[1], accounts) { it.name.value } }
-            ?.firstOrNull()
-        val to = match?.let { NameMatcher.mentioned(it.groupValues[2], accounts) { it.name.value } }
-            ?.firstOrNull { it.id != from?.id }
-        return if (from != null && to != null) from to to else null
+    ): AccountRoles {
+        val from = fromRegex.find(text)?.let { match ->
+            NameMatcher.mentioned(match.groupValues[1], accounts) { it.name.value }.firstOrNull()
+        }
+        val to = toRegex.find(text)?.let { match ->
+            NameMatcher.mentioned(match.groupValues[1], accounts) { it.name.value }
+                .firstOrNull { it.id != from?.id }
+        }
+        return AccountRoles(from = from, to = to)
     }
 
     private fun date(text: String, today: LocalDate): LocalDate? {
@@ -105,13 +118,13 @@ class LocalVoiceTransactionParser @Inject constructor() {
         originalText: String,
         accounts: List<Account>,
     ): NotBlankTrimmedString? {
-        val accountWords = accounts.flatMap { words(NameMatcher.normalize(it.name.value)) }.toSet()
         val title = words(originalText)
             .filterNot { word ->
-                val normalized = NameMatcher.normalize(word)
-                normalized in titleStopWords ||
-                    normalized in accountWords ||
-                    word.any { it.isDigit() }
+                NameMatcher.normalize(word) in titleStopWords ||
+                    // amounts and spelled-out letters ("c i b")
+                    word.length == 1 ||
+                    word.any { it.isDigit() } ||
+                    accounts.any { NameMatcher.isPartOfName(word, it.name.value) }
             }
             .joinToString(" ")
             .replaceFirstChar { it.titlecase(Locale.getDefault()) }
@@ -128,7 +141,8 @@ class LocalVoiceTransactionParser @Inject constructor() {
         // "1,500.50" (thousands separator) or "25", "25.50", "25,50"
         private val amountRegex = Regex("\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:[.,]\\d+)?")
         private val thousandsRegex = Regex("\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?")
-        private val fromToRegex = Regex("from (.+?) to (.+)")
+        private val fromRegex = Regex("(?:\\bfrom|\\bout of|\\busing|\\bwith) (.+?)(?= (?:to|into) |$)")
+        private val toRegex = Regex("(?:\\bto|\\binto) (.+?)(?= (?:from|out of) |$)")
         private val daysAgoRegex = Regex("(\\d+) days? ago")
 
         private val incomeWords = setOf(
@@ -141,7 +155,8 @@ class LocalVoiceTransactionParser @Inject constructor() {
             // actions
             "spent", "spend", "paid", "pay", "bought", "buy", "purchased", "add", "expense",
             "received", "receive", "earned", "earn", "income", "got", "transfer",
-            "transferred", "transfered", "moved", "move",
+            "transferred", "transfered", "moved", "move", "sent", "send", "into", "out",
+            "using", "via", "by", "account", "accounts",
             // fillers
             "i", "a", "an", "the", "my", "for", "on", "at", "in", "of", "with", "from", "to",
             "and", "some", "today", "tonight", "yesterday", "day", "days", "ago", "before",
