@@ -20,7 +20,7 @@ data class LlmConfig(
 )
 
 /**
- * Stores the voice commands configuration (API keys, models and the active provider)
+ * Stores the voice commands configuration (API keys, models, the active provider and the language)
  * in encrypted shared preferences. Keys never leave the device and aren't part of backups.
  */
 @Singleton
@@ -73,6 +73,14 @@ class VoiceApiKeysRepository @Inject constructor(
         provider: VoiceApiProvider?
     ): Either<String, Unit> = write(ACTIVE_PROVIDER_PREF, provider?.name)
 
+    suspend fun findLanguage(): Either<String, VoiceLanguage> = read(LANGUAGE_PREF).map { name ->
+        VoiceLanguage.entries.firstOrNull { it.name == name?.value } ?: VoiceLanguage.Device
+    }
+
+    suspend fun saveLanguage(
+        language: VoiceLanguage
+    ): Either<String, Unit> = write(LANGUAGE_PREF, language.name)
+
     /**
      * @return the configuration of the active provider or null if voice commands
      * should use the offline parser.
@@ -111,5 +119,6 @@ class VoiceApiKeysRepository @Inject constructor(
     companion object {
         private const val PREFS_FILE_NAME = "voice_commands_api_keys"
         private const val ACTIVE_PROVIDER_PREF = "active_provider"
+        private const val LANGUAGE_PREF = "language"
     }
 }

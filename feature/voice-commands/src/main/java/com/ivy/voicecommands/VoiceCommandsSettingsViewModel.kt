@@ -28,6 +28,7 @@ class VoiceCommandsSettingsViewModel @Inject constructor(
     private val models = mutableStateMapOf<VoiceApiProvider, String>()
     private val errors = mutableStateMapOf<VoiceApiProvider, String>()
     private var activeProvider by mutableStateOf<VoiceApiProvider?>(null)
+    private var language by mutableStateOf(VoiceLanguage.Device)
 
     @Composable
     override fun uiState(): VoiceCommandsSettingsState {
@@ -36,7 +37,9 @@ class VoiceCommandsSettingsViewModel @Inject constructor(
         }
 
         return VoiceCommandsSettingsState(
-            apiKeys = getApiKeys()
+            language = language,
+            languages = VoiceLanguage.entries.toImmutableList(),
+            apiKeys = getApiKeys(),
         )
     }
 
@@ -56,6 +59,7 @@ class VoiceCommandsSettingsViewModel @Inject constructor(
 
     override fun onEvent(event: VoiceCommandsSettingsEvent) {
         when (event) {
+            is VoiceCommandsSettingsEvent.OnLanguageSelect -> onLanguageSelect(event.language)
             is VoiceCommandsSettingsEvent.OnInputChange -> {
                 inputs[event.provider] = event.input
                 errors.remove(event.provider)
@@ -73,12 +77,21 @@ class VoiceCommandsSettingsViewModel @Inject constructor(
     }
 
     private suspend fun loadSettings() {
+        apiKeysRepository.findLanguage().onRight { language = it }
         apiKeysRepository.findActiveProvider().onRight { activeProvider = it }
         VoiceApiProvider.entries.forEach { provider ->
             either {
                 apiKeysRepository.findKey(provider).bind()?.let { savedKeys[provider] = it }
                 apiKeysRepository.findModel(provider).bind()?.let { models[provider] = it.value }
             }.onLeft { errors[provider] = it }
+        }
+    }
+
+    private fun onLanguageSelect(newLanguage: VoiceLanguage) {
+        val previous = language
+        language = newLanguage
+        viewModelScope.launch {
+            apiKeysRepository.saveLanguage(newLanguage).onLeft { language = previous }
         }
     }
 

@@ -9,6 +9,8 @@ import com.ivy.navigation.EditTransactionScreen
 import com.ivy.navigation.Navigation
 import com.ivy.ui.testing.ComposeViewModelTest
 import com.ivy.ui.testing.runTest
+import com.ivy.voicecommands.VoiceApiKeysRepository
+import com.ivy.voicecommands.VoiceLanguage
 import com.ivy.voicecommands.parser.VoiceParseError
 import com.ivy.voicecommands.parser.VoiceParseResult
 import com.ivy.voicecommands.parser.VoiceTransactionDraft
@@ -26,6 +28,7 @@ import java.time.ZoneOffset
 class VoiceTransactionViewModelTest : ComposeViewModelTest() {
     private val parser = mockk<VoiceTransactionParser>()
     private val timeProvider = mockk<TimeProvider>()
+    private val settingsRepository = mockk<VoiceApiKeysRepository>()
     private lateinit var navigation: Navigation
     private lateinit var viewModel: VoiceTransactionViewModel
 
@@ -43,8 +46,9 @@ class VoiceTransactionViewModelTest : ComposeViewModelTest() {
     fun setup() {
         every { timeProvider.localTimeNow() } returns LocalTime.of(9, 30)
         every { timeProvider.getZoneId() } returns ZoneOffset.UTC
+        coEvery { settingsRepository.findLanguage() } returns Either.Right(VoiceLanguage.Device)
         navigation = Navigation()
-        viewModel = VoiceTransactionViewModel(parser, navigation, timeProvider)
+        viewModel = VoiceTransactionViewModel(parser, navigation, timeProvider, settingsRepository)
     }
 
     @Test
@@ -95,6 +99,15 @@ class VoiceTransactionViewModelTest : ComposeViewModelTest() {
             message shouldBe VoiceTransactionMessage.NoAmount
         }
         navigation.currentScreen shouldBe null
+    }
+
+    @Test
+    fun `recognizes speech in the chosen language`() {
+        coEvery { settingsRepository.findLanguage() } returns Either.Right(VoiceLanguage.ArabicEgypt)
+
+        viewModel.runTest {
+            languageTag shouldBe "ar-EG"
+        }
     }
 
     @Test

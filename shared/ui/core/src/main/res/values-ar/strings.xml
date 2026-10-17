@@ -444,4 +444,21 @@
     <string name="search_tags">وسوم البحث</string>
     <string name="language">لغة</string>
     <string name="budget_exceeded_info">تم تجاوز الميزانية بـ %2$s %1$s</string>
+    <string name="voice_commands">الأوامر الصوتية</string>
+    <string name="voice_commands_api_keys_description">أضف مفتاح API لتفهم الأوامر الصوتية أي لغة باستخدام الذكاء الاصطناعي. بدون مفتاح، يُستخدم محلل يعمل بدون إنترنت يفهم العربية والإنجليزية. تُحفظ المفاتيح مشفرة على هذا الجهاز فقط.</string>
+    <string name="voice_commands_language">لغة الأوامر الصوتية</string>
+    <string name="voice_commands_language_device">لغة الهاتف</string>
+    <string name="voice_commands_free_tier">مجاني</string>
+    <string name="voice_commands_model">النموذج</string>
+    <string name="voice_commands_use">استخدام</string>
+    <string name="voice_commands_in_use">قيد الاستخدام: %1$s</string>
+    <string name="api_key">مفتاح API</string>
+    <string name="api_key_saved">محفوظ: %1$s</string>
+    <string name="api_key_not_set">غير مضبوط</string>
+    <string name="add_by_voice">إضافة بالصوت</string>
+    <string name="voice_command_prompt">قل المعاملة، مثلاً \"صرفت 50 على الأكل\"</string>
+    <string name="voice_command_processing">جارٍ فهم الأمر…</string>
+    <string name="voice_command_unavailable">التعرف على الكلام غير متاح على هذا الجهاز</string>
+    <string name="voice_command_no_amount">لم يتم العثور على مبلغ. جرّب مثلاً \"صرفت 50 على الأكل\"</string>
+    <string name="voice_command_used_offline_parser">فشل الذكاء الاصطناعي (%1$s)، تم استخدام المحلل بدون إنترنت</string>
 </resources>

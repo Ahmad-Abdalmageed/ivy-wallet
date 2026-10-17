@@ -496,7 +496,9 @@
     <string name="language">Language</string>
     <string name="advanced_features">Advanced features</string>
     <string name="voice_commands">Voice commands</string>
-    <string name="voice_commands_api_keys_description">Add an API key so voice commands understand any language using AI. Without one, an offline parser that understands English is used. Keys are stored encrypted on this device only.</string>
+    <string name="voice_commands_api_keys_description">Add an API key so voice commands understand any language using AI. Without one, an offline parser that understands English and Arabic is used. Keys are stored encrypted on this device only.</string>
+    <string name="voice_commands_language">Voice language</string>
+    <string name="voice_commands_language_device">Phone language</string>
     <string name="voice_commands_free_tier">Free tier</string>
     <string name="voice_commands_model">Model</string>
     <string name="voice_commands_use">Use</string>

@@ -2,6 +2,7 @@ package com.ivy.voicecommands.voice
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -11,6 +12,8 @@ import com.ivy.base.time.TimeProvider
 import com.ivy.navigation.EditTransactionScreen
 import com.ivy.navigation.Navigation
 import com.ivy.ui.ComposeViewModel
+import com.ivy.voicecommands.VoiceApiKeysRepository
+import com.ivy.voicecommands.VoiceLanguage
 import com.ivy.voicecommands.parser.VoiceParseError
 import com.ivy.voicecommands.parser.VoiceTransactionDraft
 import com.ivy.voicecommands.parser.VoiceTransactionParser
@@ -22,6 +25,8 @@ import javax.inject.Inject
 data class VoiceTransactionState(
     val processing: Boolean,
     val message: VoiceTransactionMessage?,
+    /** BCP 47 tag of the language to recognize, null for the phone's language. */
+    val languageTag: String?,
 )
 
 sealed interface VoiceTransactionMessage {
@@ -45,18 +50,27 @@ class VoiceTransactionViewModel @Inject constructor(
     private val parser: VoiceTransactionParser,
     private val navigation: Navigation,
     private val timeProvider: TimeProvider,
+    private val settingsRepository: VoiceApiKeysRepository,
 ) : ComposeViewModel<VoiceTransactionState, VoiceTransactionEvent>() {
     private var processing by mutableStateOf(false)
     private var message by mutableStateOf<VoiceTransactionMessage?>(null)
+    private var language by mutableStateOf(VoiceLanguage.Device)
 
     // Waits until the UI shows the message before leaving the screen
     private var pendingScreen: EditTransactionScreen? = null
 
     @Composable
-    override fun uiState(): VoiceTransactionState = VoiceTransactionState(
-        processing = processing,
-        message = message,
-    )
+    override fun uiState(): VoiceTransactionState {
+        LaunchedEffect(Unit) {
+            settingsRepository.findLanguage().onRight { language = it }
+        }
+
+        return VoiceTransactionState(
+            processing = processing,
+            message = message,
+            languageTag = language.tag,
+        )
+    }
 
     override fun onEvent(event: VoiceTransactionEvent) {
         when (event) {

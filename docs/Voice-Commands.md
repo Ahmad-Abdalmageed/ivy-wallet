@@ -5,10 +5,10 @@ Add a transaction by speaking it, e.g. _"spent 25 on coffee"_, _"received salary
 ## Flow
 
 1. **"+" → "Add by voice"** (`feature/main/.../MainBottomBar.kt`) starts the voice command.
-2. **Speech → text:** `VoiceTransactionHost` launches the device's speech recognizer (`RecognizerIntent.ACTION_RECOGNIZE_SPEECH`). Free, no `RECORD_AUDIO` permission - the system recognizer owns the mic.
+2. **Speech → text:** `VoiceTransactionHost` launches the device's speech recognizer (`RecognizerIntent.ACTION_RECOGNIZE_SPEECH`). Free, no `RECORD_AUDIO` permission - the system recognizer owns the mic. The language comes from **Settings → Voice commands → Voice language** (`VoiceLanguage`: phone language, English, Arabic (Egypt), Arabic (Saudi Arabia)) via `EXTRA_LANGUAGE`.
 3. **Text → draft:** `VoiceTransactionParser` turns the text into a `VoiceTransactionDraft`:
    - with an AI provider configured → `LlmVoiceTransactionParser` (any language)
-   - without one, or if the AI request fails → `LocalVoiceTransactionParser` (offline, English)
+   - without one, or if the AI request fails → `LocalVoiceTransactionParser` (offline, English and Arabic)
 4. **Draft → confirmation:** `EditTransactionScreen` opens pre-filled (`amount`, `title`, `dateTime`, `accountId`, `toAccountId`, `categoryId`). The user reviews and saves - nothing is saved automatically, and the existing save logic (validation, loans, exchange rates, widgets) is reused.
 
 ## AI providers
@@ -29,12 +29,13 @@ Configured in **Settings → Voice commands** (`VoiceCommandsSettingsScreen`): a
 
 ## Offline parser
 
-`LocalVoiceTransactionParser` (rule-based, English):
+`LocalVoiceTransactionParser` (rule-based, English and Arabic):
 
-- **Amount:** first number - `25`, `25.50`, `25,50`, `1,500.50`.
+- **Amount:** first number - `25`, `25.50`, `25,50`, `1,500.50`, Arabic-Indic digits (`٥٠`, `٢٥٫٥`). Numbers said as words aren't supported - speech recognizers return digits.
 - **Type:** transfer (`transfer`, `moved`, "from X to Y" with two accounts), income (`received`, `salary`, `earned`, `got paid`, ...), otherwise expense.
 - **Accounts:** "from / using / with X" is the paying account, "to / into Y" the receiving one ("transfer 100 to savings" fills only the receiving account).
 - **Category / account matching** (`NameMatcher`): word-based and tolerant of how speech recognition writes names - case, emojis and punctuation are ignored, plurals match ("savings" ~ "Saving"), small misspellings of longer words match ("vodaphone" ~ "Vodafone"), spelled-out letters match acronyms ("c i b" ~ "CIB") and part of a name matches ("misr" ~ "Bank Misr") unless another name matches equally well ("bank" with "Bank Misr" and "Bank Alahly" selects nothing). The longest matching category wins.
+- **Arabic:** keywords (`صرفت`, `دفعت`, `حولت`, `حطيت`, `استلمت`, `قبضت`, `مرتب`, ...), `من` / `إلى`, `على`, `في`, `لـ`, dates (`امبارح`, `أول امبارح`, `من يومين`, `من 3 أيام`, `يوم الخميس`). `ArabicText` unifies spelling variants (أ/إ/آ, ة/ه, ى/ي), drops the article and attached prefixes (`بالكاش` → `كاش`, `لبنك` → `بنك`) and compares Arabic words with English names by sound, so English account names can be said in Arabic (`بنك مصر` ~ Bank Misr, `كاش` ~ Cash, `فودافون` ~ Vodafone, `فيزا` ~ Visa). Names that are translated rather than transliterated (`التوفير` for "Savings") need the AI parser or an Arabic account name.
 - **Date:** `today`, `yesterday`, `day before yesterday`, `N days ago`, weekday names (the last one).
 - **Title:** what's left after removing amounts, keywords, account names and dates.
 
@@ -50,6 +51,6 @@ Configured in **Settings → Voice commands** (`VoiceCommandsSettingsScreen`): a
 
 ## Limitations
 
-- The offline parser understands English only; other languages need an AI provider.
+- The offline parser understands English and Arabic; other languages need an AI provider.
 - Recognition quality and offline support depend on the device's speech service.
 - Free tiers are rate-limited and Google may use free-tier prompts to improve its products.

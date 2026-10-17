@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -22,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -33,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -43,7 +47,9 @@ import com.ivy.navigation.IvyPreview
 import com.ivy.navigation.navigation
 import com.ivy.navigation.screenScopedViewModel
 import com.ivy.ui.R
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 
 @Composable
 fun VoiceCommandsSettingsScreenImpl() {
@@ -80,6 +86,13 @@ private fun VoiceCommandsSettingsUi(
             contentPadding = innerPadding,
         ) {
             item {
+                LanguageCard(
+                    language = uiState.language,
+                    languages = uiState.languages,
+                    onSelect = { onEvent(VoiceCommandsSettingsEvent.OnLanguageSelect(it)) }
+                )
+            }
+            item {
                 Text(
                     text = stringResource(R.string.voice_commands_api_keys_description),
                     style = MaterialTheme.typography.bodyMedium
@@ -109,6 +122,45 @@ private fun BackButton() {
             imageVector = Icons.Filled.ArrowBack,
             contentDescription = "Back"
         )
+    }
+}
+
+@Composable
+private fun LanguageCard(
+    language: VoiceLanguage,
+    languages: ImmutableList<VoiceLanguage>,
+    onSelect: (VoiceLanguage) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OutlinedCard(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+            Text(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                text = stringResource(R.string.voice_commands_language),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            languages.forEach { option ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = option == language,
+                            role = Role.RadioButton,
+                            onClick = { onSelect(option) }
+                        )
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(selected = option == language, onClick = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = option.displayName
+                            ?: stringResource(R.string.voice_commands_language_device)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -238,6 +290,8 @@ private fun PreviewVoiceCommandsSettings(isDark: Boolean = false) {
     IvyPreview(isDark) {
         VoiceCommandsSettingsUi(
             uiState = VoiceCommandsSettingsState(
+                language = VoiceLanguage.ArabicEgypt,
+                languages = VoiceLanguage.entries.toImmutableList(),
                 apiKeys = persistentListOf(
                     ApiKeyState(
                         provider = VoiceApiProvider.OpenAI,

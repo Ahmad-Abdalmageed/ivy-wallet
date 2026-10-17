@@ -5,6 +5,8 @@ import kotlinx.collections.immutable.ImmutableList
 
 @Immutable
 data class VoiceCommandsSettingsState(
+    val language: VoiceLanguage,
+    val languages: ImmutableList<VoiceLanguage>,
     val apiKeys: ImmutableList<ApiKeyState>,
 )
 

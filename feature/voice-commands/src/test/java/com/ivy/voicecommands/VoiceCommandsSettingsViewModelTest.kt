@@ -22,6 +22,8 @@ class VoiceCommandsSettingsViewModelTest : ComposeViewModelTest() {
         coEvery { repository.findKey(any()) } returns Either.Right(null)
         coEvery { repository.findModel(any()) } returns Either.Right(null)
         coEvery { repository.findActiveProvider() } returns Either.Right(null)
+        coEvery { repository.findLanguage() } returns Either.Right(VoiceLanguage.Device)
+        coEvery { repository.saveLanguage(any()) } returns Either.Right(Unit)
         coEvery { repository.saveKey(any(), any()) } returns Either.Right(Unit)
         coEvery { repository.saveModel(any(), any()) } returns Either.Right(Unit)
         coEvery { repository.saveActiveProvider(any()) } returns Either.Right(Unit)
@@ -52,6 +54,19 @@ class VoiceCommandsSettingsViewModelTest : ComposeViewModelTest() {
             of(VoiceApiProvider.Google).hasFreeTier shouldBe true
             of(VoiceApiProvider.Google).active shouldBe false
         }
+    }
+
+    @Test
+    fun `shows and changes the voice language`() {
+        coEvery { repository.findLanguage() } returns Either.Right(VoiceLanguage.English)
+
+        viewModel.runTest(
+            events = listOf(VoiceCommandsSettingsEvent.OnLanguageSelect(VoiceLanguage.ArabicEgypt))
+        ) {
+            language shouldBe VoiceLanguage.ArabicEgypt
+            languages shouldBe VoiceLanguage.entries
+        }
+        coVerify { repository.saveLanguage(VoiceLanguage.ArabicEgypt) }
     }
 
     @Test

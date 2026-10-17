@@ -1,6 +1,8 @@
 package com.ivy.voicecommands
 
 sealed interface VoiceCommandsSettingsEvent {
+    data class OnLanguageSelect(val language: VoiceLanguage) : VoiceCommandsSettingsEvent
+
     data class OnInputChange(
         val provider: VoiceApiProvider,
         val input: String,

@@ -10,22 +10,24 @@ import java.util.Locale
  * plurals match singulars ("savings" ~ "Saving"), small misspellings match ("masr" ~ "Misr"),
  * spelled-out letters match acronyms ("c i b" ~ "CIB") and part of a name matches
  * ("vodafone" ~ "Vodafone Cash") unless another name matches as well or better.
+ * Arabic is supported too, including English names said in Arabic - see [ArabicText].
  */
 object NameMatcher {
     private val diacritics = Regex("\\p{Mn}+")
     private val tokenSeparator = Regex("[^\\p{L}\\p{N}]+")
 
     // Words that don't identify an account or a category on their own
-    private val genericWords = setOf("account", "acc", "acct", "my", "the")
+    private val genericWords = setOf("account", "acc", "acct", "my", "the", "حساب", "حسابي")
 
     fun normalize(text: String): String = Normalizer.normalize(text, Normalizer.Form.NFD)
         .replace(diacritics, "")
         .lowercase(Locale.ROOT)
+        .let(ArabicText::normalize)
         .trim()
 
     /**
-     * Normalized words of [text] with letters spelled one by one merged ("c i b" -> "cib")
-     * and simple plurals reduced to their singular.
+     * Normalized words of [text] with letters spelled one by one merged ("c i b" -> "cib"),
+     * simple plurals reduced to their singular and the Arabic article removed ("الكاش" -> "كاش").
      */
     fun tokens(text: String): List<String> {
         val words = normalize(text).split(tokenSeparator).filter { it.isNotEmpty() }
@@ -41,7 +43,7 @@ object NameMatcher {
             }
         }
         if (letters.isNotEmpty()) merged += letters
-        return merged.map(::singular)
+        return merged.map { singular(ArabicText.withoutArticle(it)) }
     }
 
     /**
@@ -142,6 +144,20 @@ object NameMatcher {
     }
 
     private fun similar(a: String, b: String): Boolean {
+        val aArabic = ArabicText.isArabic(a)
+        val bArabic = ArabicText.isArabic(b)
+        return when {
+            aArabic && bArabic -> ArabicText.variants(a).any { x ->
+                ArabicText.variants(b).any { y -> similarSpelling(x, y) }
+            }
+
+            aArabic -> ArabicText.variants(a).any { ArabicText.soundsLike(it, b) }
+            bArabic -> ArabicText.variants(b).any { ArabicText.soundsLike(it, a) }
+            else -> similarSpelling(a, b)
+        }
+    }
+
+    private fun similarSpelling(a: String, b: String): Boolean {
         val shorter = minOf(a.length, b.length)
         val allowedEdits = when {
             shorter >= LONG_WORD -> 2
@@ -151,24 +167,6 @@ object NameMatcher {
         // Numbers (e.g. card digits) must match exactly
         val hasDigits = a.any { it.isDigit() } || b.any { it.isDigit() }
         return a == b || (allowedEdits > 0 && !hasDigits && editDistance(a, b) <= allowedEdits)
-    }
-
-    private fun editDistance(a: String, b: String): Int {
-        var previous = IntArray(b.length + 1) { it }
-        for (i in 1..a.length) {
-            val current = IntArray(b.length + 1)
-            current[0] = i
-            for (j in 1..b.length) {
-                val substitution = if (a[i - 1] == b[j - 1]) 0 else 1
-                current[j] = minOf(
-                    previous[j] + 1,
-                    current[j - 1] + 1,
-                    previous[j - 1] + substitution
-                )
-            }
-            previous = current
-        }
-        return previous[b.length]
     }
 
     private data class MatchScore(
