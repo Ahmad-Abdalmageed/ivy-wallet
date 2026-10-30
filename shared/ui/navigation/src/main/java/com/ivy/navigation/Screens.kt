@@ -145,3 +145,7 @@ data object ReleasesScreen : Screen
 data object DisclaimerScreen : Screen
 
 data object PollScreen : Screen
+
+data object StatsScreen : Screen
+
+data object ExternalCommandsScreen : Screen

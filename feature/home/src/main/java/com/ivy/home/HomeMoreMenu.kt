@@ -72,6 +72,7 @@ import com.ivy.navigation.PlannedPaymentsScreen
 import com.ivy.navigation.ReportScreen
 import com.ivy.navigation.SearchScreen
 import com.ivy.navigation.SettingsScreen
+import com.ivy.navigation.StatsScreen
 import com.ivy.navigation.navigation
 import com.ivy.ui.R
 import com.ivy.wallet.ui.theme.Blue
@@ -84,7 +85,7 @@ import com.ivy.wallet.ui.theme.wallet.AmountCurrencyB1
 import java.util.UUID
 import kotlin.math.roundToInt
 
-private const val SWIPE_UP_THRESHOLD_CLOSE_MORE_MENU = 300
+private const val SwipeUpThresholdCloseMoreMenu = 300
 
 @Composable
 fun BoxWithConstraintsScope.MoreMenu(
@@ -168,7 +169,7 @@ fun BoxWithConstraintsScope.MoreMenu(
                 .verticalScroll(rememberScrollState())
                 .zIndex(510f)
                 .verticalSwipeListener(
-                    sensitivity = SWIPE_UP_THRESHOLD_CLOSE_MORE_MENU,
+                    sensitivity = SwipeUpThresholdCloseMoreMenu,
                     state = rememberSwipeListenerState(),
                     onSwipeUp = {
                         setExpanded(false)
@@ -537,8 +538,31 @@ private fun QuickAccess(
 
             Spacer(Modifier.weight(1f))
         }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Third Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Start,
+            verticalAlignment = Alignment.Top
+        ) {
+            Spacer(Modifier.weight(1f))
+
+            MoreMenuButton(
+                icon = R.drawable.ic_vue_chart_chart,
+                label = stringResource(R.string.stats_menu),
+            ) {
+                nav.navigateTo(StatsScreen)
+            }
+
+            Spacer(Modifier.weight(QuickAccessEmptySlotsWeight))
+        }
     }
 }
+
+// Keeps the only button of the last row in the first column of the rows above
+private const val QuickAccessEmptySlotsWeight = 7f
 
 @Composable
 private fun MoreMenuButton(

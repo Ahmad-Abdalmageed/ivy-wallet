@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Lets other apps and `adb shell content call` run Ivy Wallet commands.
+             Every command needs the access key from Settings → External commands. -->
+        <provider
+            android:name="com.ivy.commands.provider.IvyCommandsProvider"
+            android:authorities="${applicationId}.commands"
+            android:exported="true" />
+    </application>
+</manifest>
