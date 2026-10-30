@@ -515,7 +515,7 @@ private fun QuickAccess(
                 icon = R.drawable.home_more_menu_reports,
                 label = stringResource(R.string.reports),
             ) {
-                nav.navigateTo(ReportScreen)
+                nav.navigateTo(ReportScreen(initialFilter = null))
             }
 
             Spacer(Modifier.weight(1f))

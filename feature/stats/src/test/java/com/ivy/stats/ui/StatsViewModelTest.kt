@@ -1,6 +1,7 @@
 package com.ivy.stats.ui
 
 import com.ivy.base.TestDispatchersProvider
+import com.ivy.base.model.TransactionType
 import com.ivy.base.time.TimeProvider
 import com.ivy.data.model.primitive.AssetCode
 import com.ivy.data.repository.AccountRepository
@@ -10,6 +11,8 @@ import com.ivy.data.repository.ExchangeRatesRepository
 import com.ivy.data.repository.TagRepository
 import com.ivy.data.repository.TransactionRepository
 import com.ivy.navigation.Navigation
+import com.ivy.navigation.ReportFilterArgs
+import com.ivy.navigation.ReportScreen
 import com.ivy.stats.domain.BaseCurrencyChanger
 import com.ivy.stats.domain.MonthlyExpensesCalculator
 import com.ivy.stats.domain.PeriodPreset
@@ -74,20 +77,7 @@ class StatsViewModelTest : ComposeViewModelTest() {
             transactions.filter { it.time in start..end }
         }
         coEvery { formatMoney.format(any(), any()) } answers { firstArg<Double>().toInt().toString() }
-        viewModel = StatsViewModel(
-            transactionRepository = transactionRepository,
-            accountRepository = accountRepository,
-            categoryRepository = categoryRepository,
-            tagRepository = tagRepository,
-            currencyRepository = currencyRepository,
-            exchangeRatesRepository = exchangeRatesRepository,
-            baseCurrencyChanger = baseCurrencyChanger,
-            calculator = MonthlyExpensesCalculator(),
-            formatMoney = formatMoney,
-            timeProvider = timeProvider,
-            dispatchers = TestDispatchersProvider,
-            navigation = Navigation(),
-        )
+        viewModel = createViewModel(Navigation())
     }
 
     @Test
@@ -168,11 +158,65 @@ class StatsViewModelTest : ComposeViewModelTest() {
     }
 
     @Test
-    fun `selects a month`() {
+    fun `opens the month in reports with the filters`() {
+        val navigation = Navigation()
+        val viewModel = createViewModel(navigation)
+
         viewModel.runTest(
-            events = listOf(StatsEvent.OnBarClick(YearMonth.of(2026, 9)))
+            events = listOf(
+                StatsEvent.OnFilterOptionToggle(StatsFilterType.Accounts, bank.id.value.toString()),
+                StatsEvent.OnFilterOptionToggle(StatsFilterType.Tags, StatsViewModel.NONE_KEY),
+                StatsEvent.OnMonthClick(YearMonth.of(2026, 9)),
+            )
         ) {
-            selectedBar?.amount shouldBe "10 EUR"
+            loading shouldBe false
         }
+
+        navigation.currentScreen shouldBe ReportScreen(
+            initialFilter = ReportFilterArgs(
+                transactionTypes = listOf(TransactionType.EXPENSE),
+                from = Instant.parse("2026-09-01T00:00:00Z"),
+                to = Instant.parse("2026-09-30T23:59:59.999Z"),
+                accountIds = listOf(cash.id.value),
+                categoryIds = listOf(food.id.value),
+                includeUncategorized = true,
+                includedTagIds = listOf(work.id.value),
+                excludedTagIds = emptyList(),
+            )
+        )
     }
+
+    @Test
+    fun `reports exclude the unchecked tags when "no tags" is checked`() {
+        val navigation = Navigation()
+        val viewModel = createViewModel(navigation)
+
+        viewModel.runTest(
+            events = listOf(
+                StatsEvent.OnFilterOptionToggle(StatsFilterType.Tags, work.id.value.toString()),
+                StatsEvent.OnMonthClick(YearMonth.of(2026, 9)),
+            )
+        ) {
+            loading shouldBe false
+        }
+
+        val filter = (navigation.currentScreen as ReportScreen).initialFilter!!
+        filter.includedTagIds shouldBe emptyList()
+        filter.excludedTagIds shouldBe listOf(work.id.value)
+    }
+
+    private fun createViewModel(navigation: Navigation): StatsViewModel = StatsViewModel(
+        transactionRepository = transactionRepository,
+        accountRepository = accountRepository,
+        categoryRepository = categoryRepository,
+        tagRepository = tagRepository,
+        currencyRepository = currencyRepository,
+        exchangeRatesRepository = exchangeRatesRepository,
+        baseCurrencyChanger = baseCurrencyChanger,
+        calculator = MonthlyExpensesCalculator(),
+        formatMoney = formatMoney,
+        timeProvider = timeProvider,
+        dispatchers = TestDispatchersProvider,
+        navigation = navigation,
+    )
 }

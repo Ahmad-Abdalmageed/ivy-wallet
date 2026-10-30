@@ -470,6 +470,7 @@
     <string name="stats_cancel">إلغاء</string>
     <string name="stats_previous_year">العام السابق</string>
     <string name="stats_next_year">العام التالي</string>
+    <string name="stats_open_report_hint">اضغط على شهر لعرض مصروفاته في التقارير.</string>
     <string name="external_commands">الأوامر الخارجية</string>
     <string name="external_commands_enable">السماح للتطبيقات الأخرى بتشغيل الأوامر</string>
     <string name="external_commands_enable_description">يتيح لـ Claude وGemini والمساعدين الآخرين إضافة المعاملات وقراءتها عبر adb أو تطبيق لديه مفتاح الوصول. متوقف افتراضيًا.</string>

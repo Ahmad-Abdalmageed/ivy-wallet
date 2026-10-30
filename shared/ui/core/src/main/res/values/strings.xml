@@ -521,6 +521,7 @@
     <string name="stats_cancel">Cancel</string>
     <string name="stats_previous_year">Previous year</string>
     <string name="stats_next_year">Next year</string>
+    <string name="stats_open_report_hint">Tap a month to see its expenses in Reports.</string>
     <string name="external_commands">External commands</string>
     <string name="external_commands_enable">Allow other apps to run commands</string>
     <string name="external_commands_enable_description">Lets Claude, Gemini and other assistants add and read transactions through adb or an app that has your access key. Off by default.</string>

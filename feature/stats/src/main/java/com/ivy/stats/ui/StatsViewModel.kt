@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewModelScope
+import com.ivy.base.model.TransactionType
 import com.ivy.base.threading.DispatchersProvider
 import com.ivy.base.time.TimeProvider
 import com.ivy.data.model.Account
@@ -25,6 +26,8 @@ import com.ivy.data.repository.TagRepository
 import com.ivy.data.repository.TransactionRepository
 import com.ivy.domain.usecase.exchange.CurrencyConverter
 import com.ivy.navigation.Navigation
+import com.ivy.navigation.ReportFilterArgs
+import com.ivy.navigation.ReportScreen
 import com.ivy.stats.domain.BaseCurrencyChanger
 import com.ivy.stats.domain.MonthlyExpenses
 import com.ivy.stats.domain.MonthlyExpensesCalculator
@@ -83,7 +86,6 @@ class StatsViewModel @Inject constructor(
     private var total by mutableStateOf("")
     private var average by mutableStateOf("")
     private var missingRates by mutableStateOf<ImmutableList<String>>(persistentListOf())
-    private var selectedMonth by mutableStateOf<YearMonth?>(null)
 
     private var openFilter by mutableStateOf<StatsFilterType?>(null)
     private var monthPicker by mutableStateOf<MonthField?>(null)
@@ -106,7 +108,6 @@ class StatsViewModel @Inject constructor(
             from = period.from,
             to = period.to,
             bars = bars,
-            selectedBar = bars.find { it.month == selectedMonth },
             total = total,
             average = average,
             highest = bars.filter { it.fraction > 0f }.maxByOrNull { it.fraction },
@@ -174,7 +175,7 @@ class StatsViewModel @Inject constructor(
             is StatsEvent.OnMonthFieldClick -> monthPicker = event.field
             is StatsEvent.OnMonthSelect -> selectMonth(event.month)
             StatsEvent.OnMonthPickerDismiss -> monthPicker = null
-            is StatsEvent.OnBarClick -> selectMonthBar(event.month)
+            is StatsEvent.OnMonthClick -> openReport(event.month)
 
             is StatsEvent.OnFilterClick -> openFilter = event.type
             StatsEvent.OnFilterDismiss -> openFilter = null
@@ -219,13 +220,41 @@ class StatsViewModel @Inject constructor(
         )
     }
 
-    private fun selectMonthBar(month: YearMonth) {
-        selectedMonth = month.takeIf { it != selectedMonth }
+    /**
+     * Opens the month's expenses in Reports with the same filters.
+     * Reports can't combine "no tags" with tags, so when "no tags" is checked
+     * the unchecked tags are excluded instead.
+     */
+    private fun openReport(month: YearMonth) {
+        val zone = timeProvider.getZoneId()
+        val monthPeriod = StatsPeriod(from = month, to = month)
+        val tagIds = tags.map { it.id.value }
+        val checkedTagIds = tagIds.filter { it.toString() in selectedTags }
+        val allTagsChecked = checkedTagIds.size == tagIds.size && NONE_KEY in selectedTags
+        navigation.navigateTo(
+            ReportScreen(
+                initialFilter = ReportFilterArgs(
+                    transactionTypes = listOf(TransactionType.EXPENSE),
+                    from = monthPeriod.start(zone),
+                    to = monthPeriod.end(zone),
+                    accountIds = accounts.map { it.id.value }.filter { it.toString() in selectedAccounts },
+                    categoryIds = categories.map { it.id.value }.filter { it.toString() in selectedCategories },
+                    includeUncategorized = NONE_KEY in selectedCategories,
+                    includedTagIds = when {
+                        allTagsChecked || NONE_KEY in selectedTags -> emptyList()
+                        else -> checkedTagIds
+                    },
+                    excludedTagIds = when {
+                        allTagsChecked || NONE_KEY !in selectedTags -> emptyList()
+                        else -> tagIds - checkedTagIds.toSet()
+                    },
+                ),
+            )
+        )
     }
 
     private fun changePeriod(newPeriod: StatsPeriod) {
         period = newPeriod
-        selectedMonth = null
         recalculate()
     }
 

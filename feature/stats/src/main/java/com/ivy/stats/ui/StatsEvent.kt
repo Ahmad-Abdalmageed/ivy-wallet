@@ -9,7 +9,7 @@ sealed interface StatsEvent {
     data class OnMonthFieldClick(val field: MonthField) : StatsEvent
     data class OnMonthSelect(val month: YearMonth) : StatsEvent
     data object OnMonthPickerDismiss : StatsEvent
-    data class OnBarClick(val month: YearMonth) : StatsEvent
+    data class OnMonthClick(val month: YearMonth) : StatsEvent
     data class OnFilterClick(val type: StatsFilterType) : StatsEvent
     data object OnFilterDismiss : StatsEvent
     data class OnFilterOptionToggle(val type: StatsFilterType, val key: String) : StatsEvent

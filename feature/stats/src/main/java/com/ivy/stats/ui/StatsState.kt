@@ -13,7 +13,6 @@ data class StatsState(
     val from: YearMonth,
     val to: YearMonth,
     val bars: ImmutableList<MonthBar>,
-    val selectedBar: MonthBar?,
     val total: String,
     val average: String,
     val highest: MonthBar?,

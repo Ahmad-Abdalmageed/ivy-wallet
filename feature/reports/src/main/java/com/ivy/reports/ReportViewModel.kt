@@ -21,6 +21,7 @@ import com.ivy.data.model.CategoryId
 import com.ivy.data.model.Expense
 import com.ivy.data.model.Income
 import com.ivy.data.model.Tag
+import com.ivy.data.model.TagId
 import com.ivy.data.model.Transaction
 import com.ivy.data.model.TransactionId
 import com.ivy.data.model.Transfer
@@ -37,6 +38,8 @@ import com.ivy.domain.features.Features
 import com.ivy.domain.usecase.csv.ExportCsvUseCase
 import com.ivy.frp.filterSuspend
 import com.ivy.legacy.IvyWalletCtx
+import com.ivy.legacy.data.model.FromToTimeRange
+import com.ivy.legacy.data.model.TimePeriod
 import com.ivy.legacy.datamodel.Account
 import com.ivy.legacy.datamodel.temp.toLegacy
 import com.ivy.legacy.utils.getISOFormattedDateTime
@@ -44,6 +47,7 @@ import com.ivy.legacy.utils.scopedIOThread
 import com.ivy.legacy.utils.timeNowUTC
 import com.ivy.legacy.utils.toLowerCaseLocal
 import com.ivy.legacy.utils.uiThread
+import com.ivy.navigation.ReportFilterArgs
 import com.ivy.ui.ComposeViewModel
 import com.ivy.ui.R
 import com.ivy.wallet.domain.action.account.AccountsAct
@@ -128,6 +132,7 @@ class ReportViewModel @Inject constructor(
     private var allTags by mutableStateOf<ImmutableList<Tag>>(persistentListOf())
 
     private var tagSearchJob: Job? = null
+    private var appliedInitialFilter: ReportFilterArgs? = null
     private val tagSearchDebounceTimeInMills: Long = 500
 
     @Composable
@@ -173,6 +178,7 @@ class ReportViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.Default) {
             when (event) {
                 is ReportScreenEvent.OnFilter -> setFilter(event.filter)
+                is ReportScreenEvent.OnInitialFilter -> applyInitialFilter(event.args)
                 is ReportScreenEvent.OnExport -> export(event.context)
                 is ReportScreenEvent.OnPayOrGet -> payOrGet(event.transaction)
                 is ReportScreenEvent.SkipTransaction -> skipTransaction(event.transaction)
@@ -219,6 +225,33 @@ class ReportViewModel @Inject constructor(
                 (listOf(unSpecifiedCategory) + categoryRepository.findAll()).toImmutableList()
             allTags = tagRepository.findAll().toImmutableList()
         }
+    }
+
+    /**
+     * Applies the filter a screen was opened with once, so it doesn't replace
+     * the user's changes when they come back to the same screen.
+     */
+    private suspend fun applyInitialFilter(args: ReportFilterArgs) {
+        if (args === appliedInitialFilter) return
+        appliedInitialFilter = args
+        baseCurrency = baseCurrencyAct(Unit)
+        val uncategorized = listOfNotNull(unSpecifiedCategory.takeIf { args.includeUncategorized })
+        setFilter(
+            ReportFilter(
+                trnTypes = args.transactionTypes,
+                period = TimePeriod(fromToRange = FromToTimeRange(from = args.from, to = args.to)),
+                accounts = accountsAct(Unit).filter { it.id in args.accountIds },
+                categories = categoryRepository.findAll().filter { it.id.value in args.categoryIds } +
+                        uncategorized,
+                currency = baseCurrency,
+                minAmount = null,
+                maxAmount = null,
+                includeKeywords = emptyList(),
+                excludeKeywords = emptyList(),
+                includedTags = args.includedTagIds.map(::TagId),
+                excludedTags = args.excludedTagIds.map(::TagId),
+            )
+        )
     }
 
     private suspend fun setFilter(reportFilter: ReportFilter?) {

@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -180,7 +181,6 @@ private fun StatsContent(
         item(key = "chart") {
             ChartCard(
                 bars = state.bars,
-                selectedBar = state.selectedBar,
                 onEvent = onEvent,
             )
         }
@@ -200,7 +200,6 @@ private fun StatsContent(
         items(items = state.bars.reversed(), key = { it.month.toString() }) { bar ->
             MonthRow(
                 bar = bar,
-                selected = bar == state.selectedBar,
                 onEvent = onEvent,
             )
         }
@@ -342,11 +341,9 @@ private fun SummaryValue(
 @Composable
 private fun ChartCard(
     bars: ImmutableList<MonthBar>,
-    selectedBar: MonthBar?,
     onEvent: (StatsEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val locale = LocalConfiguration.current.locales[0]
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -355,10 +352,15 @@ private fun ChartCard(
         Column(modifier = Modifier.padding(vertical = 16.dp)) {
             Text(
                 modifier = Modifier.padding(horizontal = 16.dp),
-                text = selectedBar?.let { "${it.month.label(locale)}: ${it.amount}" }
-                    ?: stringResource(R.string.stats_title),
+                text = stringResource(R.string.stats_title),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
+            )
+            Text(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                text = stringResource(R.string.stats_open_report_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline,
             )
             Spacer(modifier = Modifier.height(12.dp))
             if (bars.all { it.fraction == 0f }) {
@@ -371,7 +373,6 @@ private fun ChartCard(
             } else {
                 BarChart(
                     bars = bars,
-                    selectedBar = selectedBar,
                     onEvent = onEvent,
                 )
             }
@@ -382,7 +383,6 @@ private fun ChartCard(
 @Composable
 private fun BarChart(
     bars: ImmutableList<MonthBar>,
-    selectedBar: MonthBar?,
     onEvent: (StatsEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -397,7 +397,6 @@ private fun BarChart(
         bars.forEach { bar ->
             Bar(
                 bar = bar,
-                selected = bar == selectedBar,
                 showYear = bar.month.monthValue == 1 || bar == bars.first(),
                 onEvent = onEvent,
                 modifier = if (scrollable) Modifier.width(BarWidth.dp) else Modifier.weight(1f),
@@ -409,15 +408,14 @@ private fun BarChart(
 @Composable
 private fun Bar(
     bar: MonthBar,
-    selected: Boolean,
     showYear: Boolean,
     onEvent: (StatsEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val locale = LocalConfiguration.current.locales[0]
-    val color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    val color = MaterialTheme.colorScheme.error
     Column(
-        modifier = modifier.clickable { onEvent(StatsEvent.OnBarClick(bar.month)) },
+        modifier = modifier.clickable { onEvent(StatsEvent.OnMonthClick(bar.month)) },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Column(
@@ -430,7 +428,7 @@ private fun Bar(
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
-                color = if (selected) color else MaterialTheme.colorScheme.outline,
+                color = MaterialTheme.colorScheme.outline,
             )
             Spacer(modifier = Modifier.height(4.dp))
             Spacer(
@@ -445,7 +443,6 @@ private fun Bar(
         Text(
             text = bar.month.format(DateTimeFormatter.ofPattern("MMM", locale)),
             style = MaterialTheme.typography.labelSmall,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             maxLines = 1,
         )
         Text(
@@ -460,7 +457,6 @@ private fun Bar(
 @Composable
 private fun MonthRow(
     bar: MonthBar,
-    selected: Boolean,
     onEvent: (StatsEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -469,7 +465,7 @@ private fun MonthRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onEvent(StatsEvent.OnBarClick(bar.month)) }
+                .clickable { onEvent(StatsEvent.OnMonthClick(bar.month)) }
                 .padding(horizontal = 24.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -477,12 +473,16 @@ private fun MonthRow(
                 modifier = Modifier.weight(1f),
                 text = bar.month.label(locale),
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             )
             Text(
                 text = bar.amount,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.outline,
             )
         }
         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
