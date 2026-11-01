@@ -14,6 +14,7 @@ import com.ivy.frp.test.TestIdlingResource
 import com.ivy.legacy.IvyWalletCtx
 import com.ivy.legacy.utils.ioThread
 import com.ivy.legacy.utils.readOnly
+import com.ivy.navigation.AssistantScreen
 import com.ivy.navigation.DisclaimerScreen
 import com.ivy.navigation.EditTransactionScreen
 import com.ivy.navigation.MainScreen
@@ -47,6 +48,7 @@ class RootViewModel @Inject constructor(
 
     companion object {
         const val EXTRA_ADD_TRANSACTION_TYPE = "add_transaction_type_extra"
+        const val ACTION_OPEN_ASSISTANT = "ivy.wallet.intent.action.assistant"
 
         const val USER_INACTIVITY_TIME_LIMIT = 60 // Time in seconds
     }
@@ -113,18 +115,25 @@ class RootViewModel @Inject constructor(
             null
         }
 
-        if (addTrnType != null) {
-            nav.navigateTo(
-                EditTransactionScreen(
-                    initialTransactionId = null,
-                    type = addTrnType
+        return when {
+            intent.action == ACTION_OPEN_ASSISTANT || intent.action == Intent.ACTION_ASSIST -> {
+                nav.navigateTo(MainScreen)
+                nav.navigateTo(AssistantScreen(listenOnStart = true))
+                true
+            }
+
+            addTrnType != null -> {
+                nav.navigateTo(
+                    EditTransactionScreen(
+                        initialTransactionId = null,
+                        type = addTrnType
+                    )
                 )
-            )
+                true
+            }
 
-            return true
+            else -> false
         }
-
-        return false
     }
 
     @Suppress("EmptyFunctionBlock")

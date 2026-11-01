@@ -64,6 +64,7 @@ import com.ivy.legacy.utils.springBounce
 import com.ivy.legacy.utils.statusBarInset
 import com.ivy.legacy.utils.toDensityPx
 import com.ivy.legacy.utils.verticalSwipeListener
+import com.ivy.navigation.AssistantScreen
 import com.ivy.navigation.BudgetScreen
 import com.ivy.navigation.CategoriesScreen
 import com.ivy.navigation.IvyPreview
@@ -556,13 +557,22 @@ private fun QuickAccess(
                 nav.navigateTo(StatsScreen)
             }
 
+            Spacer(Modifier.weight(1f))
+
+            MoreMenuButton(
+                icon = R.drawable.ic_vue_messages_msgs,
+                label = stringResource(R.string.assistant_title),
+            ) {
+                nav.navigateTo(AssistantScreen(listenOnStart = false))
+            }
+
             Spacer(Modifier.weight(QuickAccessEmptySlotsWeight))
         }
     }
 }
 
-// Keeps the only button of the last row in the first column of the rows above
-private const val QuickAccessEmptySlotsWeight = 7f
+// Keeps the buttons of the last row in the first columns of the rows above
+private const val QuickAccessEmptySlotsWeight = 5f
 
 @Composable
 private fun MoreMenuButton(

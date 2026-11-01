@@ -8,6 +8,7 @@ import com.ivy.attributions.AttributionsScreenImpl
 import com.ivy.balance.BalanceScreen
 import com.ivy.budgets.BudgetScreen
 import com.ivy.categories.CategoriesScreen
+import com.ivy.commands.assistant.AssistantScreen
 import com.ivy.commands.ui.ExternalCommandsScreen
 import com.ivy.contributors.ContributorsScreenImpl
 import com.ivy.disclaimer.DisclaimerScreenImpl
@@ -18,6 +19,7 @@ import com.ivy.importdata.csvimport.ImportCSVScreen
 import com.ivy.loans.loan.LoansScreen
 import com.ivy.loans.loandetails.LoanDetailsScreen
 import com.ivy.main.MainScreen
+import com.ivy.navigation.AssistantScreen
 import com.ivy.navigation.AttributionsScreen
 import com.ivy.navigation.BalanceScreen
 import com.ivy.navigation.BudgetScreen
@@ -94,5 +96,6 @@ fun BoxWithConstraintsScope.IvyNavGraph(screen: Screen?) {
         PollScreen -> PollScreen()
         StatsScreen -> StatsScreen()
         ExternalCommandsScreen -> ExternalCommandsScreen()
+        is AssistantScreen -> AssistantScreen(screen = screen)
     }
 }

@@ -46,6 +46,12 @@
                 <action android:name="ivy.wallet.intent.action.add_transaction" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <!-- Opens the in-app assistant: launcher shortcut, or Ivy picked as the phone's assistant app -->
+            <intent-filter>
+                <action android:name="ivy.wallet.intent.action.assistant" />
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
 
             <meta-data
                 android:name="android.app.shortcuts"

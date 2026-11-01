@@ -173,3 +173,10 @@ data object PollScreen : Screen
 data object StatsScreen : Screen
 
 data object ExternalCommandsScreen : Screen
+
+/**
+ * @param listenOnStart starts voice input when the screen opens
+ */
+data class AssistantScreen(
+    val listenOnStart: Boolean,
+) : Screen
