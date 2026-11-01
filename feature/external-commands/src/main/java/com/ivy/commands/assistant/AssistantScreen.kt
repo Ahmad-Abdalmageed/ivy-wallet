@@ -280,7 +280,7 @@ private fun MessageItem(
         is ChatMessage.Added -> TransactionCard(
             modifier = modifier,
             message = message,
-            onUndo = { onEvent(AssistantEvent.OnUndoClick(message.id)) },
+            onUndo = { onEvent(AssistantEvent.OnUndoClick(message)) },
         )
     }
 }

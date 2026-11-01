@@ -2,6 +2,7 @@ package com.ivy.commands.assistant
 
 import arrow.core.Either
 import com.ivy.commands.command.CommandProcessor
+import com.ivy.data.model.TransactionId
 import com.ivy.navigation.Navigation
 import com.ivy.ui.testing.ComposeViewModelTest
 import com.ivy.ui.testing.runTest
@@ -16,6 +17,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Before
 import org.junit.Test
+import java.util.UUID
 
 class AssistantViewModelTest : ComposeViewModelTest() {
     private val agent = mockk<AssistantAgent>(relaxUnitFun = true)
@@ -23,9 +25,10 @@ class AssistantViewModelTest : ComposeViewModelTest() {
     private val processor = mockk<CommandProcessor>()
     private val config = AssistantConfig(apiKey = "key", model = "gemini-flash-latest")
     private lateinit var viewModel: AssistantViewModel
+    private val transactionId = TransactionId(UUID.fromString("5e6f3b52-7c0d-4f7e-9a3b-0f1e2d3c4b5a"))
 
     private val added = buildJsonObject {
-        put("id", "t1")
+        put("id", transactionId.value.toString())
         put("type", "expense")
         put("amount", 25.0)
         put("currency", "EGP")
@@ -61,7 +64,7 @@ class AssistantViewModelTest : ComposeViewModelTest() {
             messages[0] shouldBe ChatMessage.User(0, "lunch 25")
             val card = messages[1]
             card.shouldBeInstanceOf<ChatMessage.Added>()
-            card.transactionId shouldBe "t1"
+            card.transactionId shouldBe transactionId
             card.amount shouldBe "25.0 EGP"
             card.details shouldBe "Cash · Food · Lunch · 2026-11-01T13:00 · #work"
             messages[2] shouldBe ChatMessage.Assistant(2, "Saved.")
@@ -71,17 +74,17 @@ class AssistantViewModelTest : ComposeViewModelTest() {
     @Test
     fun `undo deletes the transaction and tells the assistant`() {
         coEvery { processor.execute("delete_transaction", any()) } returns
-            Either.Right(buildJsonObject { put("deleted", "t1") })
+            Either.Right(buildJsonObject { put("deleted", transactionId.value.toString()) })
 
+        viewModel.runTest(events = listOf(AssistantEvent.OnSpeechResult("lunch 25"))) {
+            messages[1].shouldBeInstanceOf<ChatMessage.Added>()
+        }
         viewModel.runTest(
-            events = listOf(
-                AssistantEvent.OnSpeechResult("lunch 25"),
-                AssistantEvent.OnUndoClick(messageId = 1),
-            )
+            events = listOf(AssistantEvent.OnUndoClick(addedMessage()))
         ) {
             (messages[1] as ChatMessage.Added).undone shouldBe true
         }
-        coVerify { agent.noteUndo("t1") }
+        coVerify { agent.noteUndo(transactionId) }
     }
 
     @Test
@@ -111,4 +114,13 @@ class AssistantViewModelTest : ComposeViewModelTest() {
             listenOnStart shouldBe true
         }
     }
+
+    private fun addedMessage(): ChatMessage.Added = ChatMessage.Added(
+        id = 1,
+        transactionId = transactionId,
+        type = "expense",
+        amount = "25.0 EGP",
+        details = "",
+        undone = false,
+    )
 }

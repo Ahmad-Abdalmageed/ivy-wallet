@@ -6,6 +6,7 @@ import com.ivy.base.time.TimeProvider
 import com.ivy.commands.command.Command
 import com.ivy.commands.command.CommandArgs
 import com.ivy.commands.command.CommandProcessor
+import com.ivy.data.model.TransactionId
 import com.ivy.data.repository.AccountRepository
 import com.ivy.data.repository.CategoryRepository
 import com.ivy.data.repository.CurrencyRepository
@@ -24,6 +25,7 @@ import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.util.UUID
 import javax.inject.Inject
 
 /**
@@ -33,7 +35,7 @@ sealed interface AssistantAction {
     /** A transaction was added; [transaction] is the `add_transaction` result. */
     data class Added(val transaction: JsonObject) : AssistantAction
 
-    data class Deleted(val transactionId: String) : AssistantAction
+    data class Deleted(val transactionId: TransactionId) : AssistantAction
 }
 
 /**
@@ -61,8 +63,8 @@ class AssistantAgent @Inject constructor(
     /**
      * Tells the model, with the next message, that the user undid a transaction.
      */
-    fun noteUndo(transactionId: String) {
-        notes += "The user undid (deleted) the transaction with id $transactionId."
+    fun noteUndo(transactionId: TransactionId) {
+        notes += "The user undid (deleted) the transaction with id ${transactionId.value}."
     }
 
     /**
@@ -142,8 +144,9 @@ class AssistantAgent @Inject constructor(
     private fun action(name: String, args: JsonObject, result: JsonElement): AssistantAction? =
         when (name) {
             Command.AddTransaction.method -> (result as? JsonObject)?.let { AssistantAction.Added(it) }
-            Command.DeleteTransaction.method ->
-                args["id"]?.jsonPrimitive?.contentOrNull?.let { AssistantAction.Deleted(it) }
+            Command.DeleteTransaction.method -> args["id"]?.jsonPrimitive?.contentOrNull
+                ?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+                ?.let { AssistantAction.Deleted(TransactionId(it)) }
 
             else -> null
         }

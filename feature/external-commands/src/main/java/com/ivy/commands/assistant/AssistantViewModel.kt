@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.ivy.commands.command.Command
 import com.ivy.commands.command.CommandArgs
 import com.ivy.commands.command.CommandProcessor
+import com.ivy.data.model.TransactionId
 import com.ivy.navigation.Navigation
 import com.ivy.ui.ComposeViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,6 +25,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import java.util.UUID
 import javax.inject.Inject
 
 @Suppress("TooManyFunctions")
@@ -84,7 +86,7 @@ class AssistantViewModel @Inject constructor(
             AssistantEvent.OnSpeechUnavailable -> add { ChatMessage.SpeechUnavailable(it) }
             AssistantEvent.OnListenOnStartHandled -> listenOnStart = false
             is AssistantEvent.OnExampleClick -> send(event.text)
-            is AssistantEvent.OnUndoClick -> undo(event.messageId)
+            is AssistantEvent.OnUndoClick -> undo(event.message)
             AssistantEvent.OnNewChatClick -> newChat()
             AssistantEvent.OnSettingsClick -> viewModelScope.launch { openSettings() }
             AssistantEvent.OnSettingsDismiss -> settingsUi = null
@@ -144,7 +146,7 @@ class AssistantViewModel @Inject constructor(
 
     private fun show(action: AssistantAction) {
         when (action) {
-            is AssistantAction.Added -> add { action.transaction.toMessage(it) }
+            is AssistantAction.Added -> action.transaction.toMessage(nextId)?.let { message -> add { message } }
             is AssistantAction.Deleted -> {
                 markUndone(action.transactionId)
                 add { ChatMessage.Deleted(it, action.transactionId) }
@@ -152,11 +154,10 @@ class AssistantViewModel @Inject constructor(
         }
     }
 
-    private fun undo(messageId: Long) {
-        val added = messages.find { it.id == messageId } as? ChatMessage.Added ?: return
+    private fun undo(added: ChatMessage.Added) {
         if (added.undone) return
         viewModelScope.launch {
-            val args = CommandArgs(buildJsonObject { put("id", added.transactionId) })
+            val args = CommandArgs(buildJsonObject { put("id", added.transactionId.value.toString()) })
             processor.execute(Command.DeleteTransaction.method, args).fold(
                 ifLeft = { error -> add { ChatMessage.Error(it, error) } },
                 ifRight = {
@@ -167,7 +168,7 @@ class AssistantViewModel @Inject constructor(
         }
     }
 
-    private fun markUndone(transactionId: String) {
+    private fun markUndone(transactionId: TransactionId) {
         messages = messages.map {
             if (it is ChatMessage.Added && it.transactionId == transactionId) it.copy(undone = true) else it
         }.toImmutableList()
@@ -183,7 +184,7 @@ class AssistantViewModel @Inject constructor(
         messages = (messages + message(nextId++)).toImmutableList()
     }
 
-    private fun JsonObject.toMessage(id: Long): ChatMessage.Added {
+    private fun JsonObject.toMessage(id: Long): ChatMessage? {
         fun field(name: String): String? = (this[name] as? JsonPrimitive)
             ?.contentOrNull
             ?.takeIf { it.isNotBlank() && it != "null" }
@@ -193,9 +194,10 @@ class AssistantViewModel @Inject constructor(
             .orEmpty()
         val account = listOfNotNull(field("account"), field("to_account")).joinToString(" → ")
         val toAmount = field("to_amount")?.let { " → $it ${field("to_currency").orEmpty()}" }.orEmpty()
+        val transactionId = field("id")?.let { runCatching { UUID.fromString(it) }.getOrNull() } ?: return null
         return ChatMessage.Added(
             id = id,
-            transactionId = field("id").orEmpty(),
+            transactionId = TransactionId(transactionId),
             type = field("type").orEmpty(),
             amount = "${field("amount").orEmpty()} ${field("currency").orEmpty()}$toAmount",
             details = (

@@ -6,6 +6,7 @@ import com.ivy.commands.command.CommandArgs
 import com.ivy.commands.command.CommandProcessor
 import com.ivy.commands.command.account
 import com.ivy.commands.command.category
+import com.ivy.data.model.TransactionId
 import com.ivy.data.model.primitive.AssetCode
 import com.ivy.data.repository.AccountRepository
 import com.ivy.data.repository.CategoryRepository
@@ -30,6 +31,7 @@ import kotlinx.serialization.json.put
 import org.junit.Before
 import org.junit.Test
 import java.time.LocalDate
+import java.util.UUID
 
 class AssistantAgentTest {
     private val gemini = mockk<GeminiClient>()
@@ -136,13 +138,13 @@ class AssistantAgentTest {
         replies(model("""{"text": "Hi"}"""), model("""{"text": "OK"}"""))
 
         agent.send("hello", config) {}
-        agent.noteUndo("t1")
+        agent.noteUndo(TransactionId(UUID.fromString("5e6f3b52-7c0d-4f7e-9a3b-0f1e2d3c4b5a")))
         agent.send("thanks", config) {}
 
         val second = requests[1]
         second.size shouldBe 3
         second[2]["parts"]!!.jsonArray[0].jsonObject["text"]!!.jsonPrimitive.content shouldBe
-            "[The user undid (deleted) the transaction with id t1.]\nthanks"
+            "[The user undid (deleted) the transaction with id 5e6f3b52-7c0d-4f7e-9a3b-0f1e2d3c4b5a.]\nthanks"
     }
 
     @Test

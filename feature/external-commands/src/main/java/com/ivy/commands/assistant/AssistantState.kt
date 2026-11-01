@@ -1,6 +1,7 @@
 package com.ivy.commands.assistant
 
 import androidx.compose.runtime.Immutable
+import com.ivy.data.model.TransactionId
 import kotlinx.collections.immutable.ImmutableList
 
 @Immutable
@@ -38,7 +39,7 @@ sealed interface ChatMessage {
     @Immutable
     data class Added(
         override val id: Long,
-        val transactionId: String,
+        val transactionId: TransactionId,
         val type: String,
         val amount: String,
         val details: String,
@@ -46,7 +47,7 @@ sealed interface ChatMessage {
     ) : ChatMessage
 
     @Immutable
-    data class Deleted(override val id: Long, val transactionId: String) : ChatMessage
+    data class Deleted(override val id: Long, val transactionId: TransactionId) : ChatMessage
 
     @Immutable
     data class SpeechUnavailable(override val id: Long) : ChatMessage

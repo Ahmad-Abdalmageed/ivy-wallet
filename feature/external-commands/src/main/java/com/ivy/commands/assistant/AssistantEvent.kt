@@ -8,7 +8,7 @@ sealed interface AssistantEvent {
     data object OnSpeechUnavailable : AssistantEvent
     data object OnListenOnStartHandled : AssistantEvent
     data class OnExampleClick(val text: String) : AssistantEvent
-    data class OnUndoClick(val messageId: Long) : AssistantEvent
+    data class OnUndoClick(val message: ChatMessage.Added) : AssistantEvent
     data object OnNewChatClick : AssistantEvent
     data object OnSettingsClick : AssistantEvent
     data object OnSettingsDismiss : AssistantEvent
