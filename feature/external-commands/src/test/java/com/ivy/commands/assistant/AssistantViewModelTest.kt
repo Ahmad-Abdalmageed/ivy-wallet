@@ -64,7 +64,7 @@ class AssistantViewModelTest : ComposeViewModelTest() {
             messages[0] shouldBe ChatMessage.User(0, "lunch 25")
             val card = messages[1]
             card.shouldBeInstanceOf<ChatMessage.Added>()
-            card.transactionId shouldBe transactionId
+            card.transaction shouldBe transactionId
             card.amount shouldBe "25.0 EGP"
             card.details shouldBe "Cash · Food · Lunch · 2026-11-01T13:00 · #work"
             messages[2] shouldBe ChatMessage.Assistant(2, "Saved.")
@@ -117,7 +117,7 @@ class AssistantViewModelTest : ComposeViewModelTest() {
 
     private fun addedMessage(): ChatMessage.Added = ChatMessage.Added(
         id = 1,
-        transactionId = transactionId,
+        transaction = transactionId,
         type = "expense",
         amount = "25.0 EGP",
         details = "",

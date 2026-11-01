@@ -35,7 +35,7 @@ sealed interface AssistantAction {
     /** A transaction was added; [transaction] is the `add_transaction` result. */
     data class Added(val transaction: JsonObject) : AssistantAction
 
-    data class Deleted(val transactionId: TransactionId) : AssistantAction
+    data class Deleted(val transaction: TransactionId) : AssistantAction
 }
 
 /**
@@ -63,8 +63,8 @@ class AssistantAgent @Inject constructor(
     /**
      * Tells the model, with the next message, that the user undid a transaction.
      */
-    fun noteUndo(transactionId: TransactionId) {
-        notes += "The user undid (deleted) the transaction with id ${transactionId.value}."
+    fun noteUndo(transaction: TransactionId) {
+        notes += "The user undid (deleted) the transaction with id ${transaction.value}."
     }
 
     /**

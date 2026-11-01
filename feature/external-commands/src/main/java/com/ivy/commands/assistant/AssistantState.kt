@@ -39,7 +39,7 @@ sealed interface ChatMessage {
     @Immutable
     data class Added(
         override val id: Long,
-        val transactionId: TransactionId,
+        val transaction: TransactionId,
         val type: String,
         val amount: String,
         val details: String,
@@ -47,7 +47,7 @@ sealed interface ChatMessage {
     ) : ChatMessage
 
     @Immutable
-    data class Deleted(override val id: Long, val transactionId: TransactionId) : ChatMessage
+    data class Deleted(override val id: Long, val transaction: TransactionId) : ChatMessage
 
     @Immutable
     data class SpeechUnavailable(override val id: Long) : ChatMessage

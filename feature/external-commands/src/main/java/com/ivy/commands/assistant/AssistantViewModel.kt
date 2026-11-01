@@ -148,8 +148,8 @@ class AssistantViewModel @Inject constructor(
         when (action) {
             is AssistantAction.Added -> action.transaction.toMessage(nextId)?.let { message -> add { message } }
             is AssistantAction.Deleted -> {
-                markUndone(action.transactionId)
-                add { ChatMessage.Deleted(it, action.transactionId) }
+                markUndone(action.transaction)
+                add { ChatMessage.Deleted(it, action.transaction) }
             }
         }
     }
@@ -157,20 +157,20 @@ class AssistantViewModel @Inject constructor(
     private fun undo(added: ChatMessage.Added) {
         if (added.undone) return
         viewModelScope.launch {
-            val args = CommandArgs(buildJsonObject { put("id", added.transactionId.value.toString()) })
+            val args = CommandArgs(buildJsonObject { put("id", added.transaction.value.toString()) })
             processor.execute(Command.DeleteTransaction.method, args).fold(
                 ifLeft = { error -> add { ChatMessage.Error(it, error) } },
                 ifRight = {
-                    markUndone(added.transactionId)
-                    agent.noteUndo(added.transactionId)
+                    markUndone(added.transaction)
+                    agent.noteUndo(added.transaction)
                 },
             )
         }
     }
 
-    private fun markUndone(transactionId: TransactionId) {
+    private fun markUndone(transaction: TransactionId) {
         messages = messages.map {
-            if (it is ChatMessage.Added && it.transactionId == transactionId) it.copy(undone = true) else it
+            if (it is ChatMessage.Added && it.transaction == transaction) it.copy(undone = true) else it
         }.toImmutableList()
     }
 
@@ -197,7 +197,7 @@ class AssistantViewModel @Inject constructor(
         val transactionId = field("id")?.let { runCatching { UUID.fromString(it) }.getOrNull() } ?: return null
         return ChatMessage.Added(
             id = id,
-            transactionId = TransactionId(transactionId),
+            transaction = TransactionId(transactionId),
             type = field("type").orEmpty(),
             amount = "${field("amount").orEmpty()} ${field("currency").orEmpty()}$toAmount",
             details = (
