@@ -486,7 +486,7 @@
     <string name="assistant_title">المساعد</string>
     <string name="assistant_shortcut">اسأل Ivy</string>
     <string name="assistant_shortcut_long">اسأل مساعد Ivy</string>
-    <string name="assistant_welcome">قل لي ما صرفته أو استلمته أو حولته بين حساباتك، بالكتابة أو بالميكروفون. ويمكنني أيضًا أن أخبرك بكم صرفت.</string>
+    <string name="assistant_welcome">قل لي ما صرفته أو استلمته أو حولته بين حساباتك، بالكتابة أو بالميكروفون أو بصورة إيصال. ويمكنني أيضًا أن أخبرك بكم صرفت.</string>
     <string name="assistant_example_1">صرفت 120 على البقالة من الكاش</string>
     <string name="assistant_example_2">استلمت مرتبي 15000 في البنك امبارح</string>
     <string name="assistant_example_3">كم صرفت على الأكل هذا الشهر؟</string>
@@ -510,4 +510,10 @@
     <string name="assistant_model">النموذج</string>
     <string name="assistant_remove_key">حذف المفتاح المحفوظ</string>
     <string name="assistant_cancel">إلغاء</string>
+    <string name="assistant_attach_photo">إضافة صورة إيصال</string>
+    <string name="assistant_take_photo">التقاط صورة</string>
+    <string name="assistant_choose_photo">اختيار من المعرض</string>
+    <string name="assistant_remove_photo">إزالة الصورة</string>
+    <string name="assistant_camera_unavailable">لا يوجد تطبيق كاميرا على هذا الهاتف.</string>
+    <string name="assistant_photo_unreadable">تعذرت قراءة الصورة. جرّب صورة أخرى.</string>
 </resources>

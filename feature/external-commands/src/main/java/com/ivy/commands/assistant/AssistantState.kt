@@ -8,6 +8,8 @@ import kotlinx.collections.immutable.ImmutableList
 data class AssistantState(
     val messages: ImmutableList<ChatMessage>,
     val input: String,
+    /** A photo to send with the next message, as a content uri. */
+    val attachment: String?,
     val sending: Boolean,
     /** null while loading */
     val hasApiKey: Boolean?,
@@ -27,7 +29,7 @@ sealed interface ChatMessage {
     val id: Long
 
     @Immutable
-    data class User(override val id: Long, val text: String) : ChatMessage
+    data class User(override val id: Long, val text: String, val imageUri: String?) : ChatMessage
 
     @Immutable
     data class Assistant(override val id: Long, val text: String) : ChatMessage
@@ -50,5 +52,11 @@ sealed interface ChatMessage {
     data class Deleted(override val id: Long, val transaction: TransactionId) : ChatMessage
 
     @Immutable
-    data class SpeechUnavailable(override val id: Long) : ChatMessage
+    data class Notice(override val id: Long, val kind: NoticeKind) : ChatMessage
+}
+
+enum class NoticeKind {
+    SpeechUnavailable,
+    CameraUnavailable,
+    PhotoUnreadable,
 }

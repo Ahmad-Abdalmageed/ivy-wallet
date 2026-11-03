@@ -6,6 +6,9 @@ sealed interface AssistantEvent {
     data object OnSendClick : AssistantEvent
     data class OnSpeechResult(val text: String) : AssistantEvent
     data object OnSpeechUnavailable : AssistantEvent
+    data class OnPhotoPick(val uri: String) : AssistantEvent
+    data object OnPhotoRemove : AssistantEvent
+    data object OnCameraUnavailable : AssistantEvent
     data object OnListenOnStartHandled : AssistantEvent
     data class OnExampleClick(val text: String) : AssistantEvent
     data class OnUndoClick(val message: ChatMessage.Added) : AssistantEvent

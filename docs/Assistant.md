@@ -22,6 +22,7 @@ The key is stored in the app's private storage (`AssistantSettings`, DataStore; 
 ## What it does
 
 - Adds expenses, income and transfers (several per message), with account, category, tags, date and currency conversion; each one appears as a card with **Undo**.
+- Reads receipt photos: tap the camera button to take a photo or pick one from the gallery, add a note if you like ("from Ahly EGP", "split by item"), and send. By default it adds one expense for the total, titled with the merchant, on the receipt's date and in its currency.
 - Answers questions about your transactions using `list_transactions` and its totals.
 - Deletes transactions when you ask.
 - Asks which account when it isn't clear and there's more than one. Never creates accounts, categories or tags.
@@ -33,6 +34,7 @@ The key is stored in the app's private storage (`AssistantSettings`, DataStore; 
 
 - `AssistantAgent`: the conversation with Gemini. Each message runs a loop: `generateContent` with the commands as function declarations (`AssistantTools`), run the function calls with the same `CommandProcessor` as the [external commands](External-Commands.md) (without the access key, since it's the app itself), send the results back, until Gemini answers with text (at most 10 steps). The model's replies are kept as is, including thought signatures. A failed request is rolled back so the conversation stays valid.
 - `GeminiClient`: `POST /v1beta/models/{model}:generateContent` with the app's Ktor client and a 90 s timeout.
+- `ReceiptImages`: camera files through a `FileProvider` (`<application id>.assistant.files`, cache `receipts/`; no camera permission needed) and photos shrunk to a JPEG of at most 1600 px, sent to Gemini as `inlineData` with the message. Gallery photos come from the system photo picker, so no storage permission either.
 - `AssistantViewModel` / `AssistantScreen`: Material 3 chat with voice input, transaction cards with undo and the key settings dialog.
 - Entry points: `AssistantScreen` in `shared/ui/navigation`, the `ivy.wallet.intent.action.assistant` / `ACTION_ASSIST` intent filter and `RootViewModel.handleSpecialStart`, the `sc_assistant` launcher shortcut.
 - Tests: `feature/external-commands/src/test/java/com/ivy/commands/assistant`.

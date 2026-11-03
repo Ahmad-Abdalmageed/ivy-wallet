@@ -23,6 +23,7 @@ class AssistantViewModelTest : ComposeViewModelTest() {
     private val agent = mockk<AssistantAgent>(relaxUnitFun = true)
     private val settings = mockk<AssistantSettings>(relaxUnitFun = true)
     private val processor = mockk<CommandProcessor>()
+    private val receiptImages = mockk<ReceiptImages>()
     private val config = AssistantConfig(apiKey = "key", model = "gemini-flash-latest")
     private lateinit var viewModel: AssistantViewModel
     private val transactionId = TransactionId(UUID.fromString("5e6f3b52-7c0d-4f7e-9a3b-0f1e2d3c4b5a"))
@@ -43,11 +44,11 @@ class AssistantViewModelTest : ComposeViewModelTest() {
     fun setup() {
         coEvery { settings.config() } returns config
         coEvery { settings.model() } returns ""
-        coEvery { agent.send("lunch 25", config, any()) } coAnswers {
-            thirdArg<suspend (AssistantAction) -> Unit>().invoke(AssistantAction.Added(added))
+        coEvery { agent.send("lunch 25", null, config, any()) } coAnswers {
+            arg<suspend (AssistantAction) -> Unit>(3).invoke(AssistantAction.Added(added))
             Either.Right("Saved.")
         }
-        viewModel = AssistantViewModel(agent, settings, processor, Navigation())
+        viewModel = AssistantViewModel(agent, settings, processor, receiptImages, Navigation())
     }
 
     @Test
@@ -61,7 +62,7 @@ class AssistantViewModelTest : ComposeViewModelTest() {
             input shouldBe ""
             sending shouldBe false
             messages.size shouldBe 3
-            messages[0] shouldBe ChatMessage.User(0, "lunch 25")
+            messages[0] shouldBe ChatMessage.User(0, "lunch 25", null)
             val card = messages[1]
             card.shouldBeInstanceOf<ChatMessage.Added>()
             card.transaction shouldBe transactionId
@@ -89,11 +90,44 @@ class AssistantViewModelTest : ComposeViewModelTest() {
 
     @Test
     fun `shows the error`() {
-        coEvery { agent.send(any(), any(), any()) } returns Either.Left("Gemini: API key not valid.")
+        coEvery { agent.send(any(), any(), any(), any()) } returns Either.Left("Gemini: API key not valid.")
 
         viewModel.runTest(events = listOf(AssistantEvent.OnExampleClick("hi"))) {
             messages.last() shouldBe ChatMessage.Error(1, "Gemini: API key not valid.")
         }
+    }
+
+    @Test
+    fun `sends a receipt photo`() {
+        val jpeg = byteArrayOf(1, 2, 3)
+        coEvery { receiptImages.jpeg("content://receipt") } returns jpeg
+        coEvery { agent.send("", jpeg, config, any()) } returns Either.Right("Saved 85 EGP.")
+
+        viewModel.runTest(
+            events = listOf(
+                AssistantEvent.OnPhotoPick("content://receipt"),
+                AssistantEvent.OnSendClick,
+            )
+        ) {
+            attachment shouldBe null
+            messages[0] shouldBe ChatMessage.User(0, "", "content://receipt")
+            messages[1] shouldBe ChatMessage.Assistant(1, "Saved 85 EGP.")
+        }
+    }
+
+    @Test
+    fun `an unreadable photo isn't sent`() {
+        coEvery { receiptImages.jpeg(any()) } returns null
+
+        viewModel.runTest(
+            events = listOf(
+                AssistantEvent.OnPhotoPick("content://broken"),
+                AssistantEvent.OnSendClick,
+            )
+        ) {
+            messages.last() shouldBe ChatMessage.Notice(1, NoticeKind.PhotoUnreadable)
+        }
+        coVerify(exactly = 0) { agent.send(any(), any(), any(), any()) }
     }
 
     @Test

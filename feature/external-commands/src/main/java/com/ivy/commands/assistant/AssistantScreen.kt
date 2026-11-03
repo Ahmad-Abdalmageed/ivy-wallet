@@ -3,9 +3,12 @@ package com.ivy.commands.assistant
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,12 +30,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,10 +54,17 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -55,6 +72,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.ivy.commands.command.CommandProcessor
 import com.ivy.design.system.colors.IvyColors
 import com.ivy.navigation.AssistantScreen
@@ -69,6 +87,7 @@ fun AssistantScreen(screen: AssistantScreen) {
     AssistantUi(
         state = viewModel.uiState(),
         onEvent = viewModel::onEvent,
+        newPhotoUri = viewModel::newPhotoUri,
     )
 }
 
@@ -76,6 +95,7 @@ fun AssistantScreen(screen: AssistantScreen) {
 private fun AssistantUi(
     state: AssistantState,
     onEvent: (AssistantEvent) -> Unit,
+    newPhotoUri: () -> String,
     modifier: Modifier = Modifier,
 ) {
     val currentOnEvent by rememberUpdatedState(onEvent)
@@ -101,6 +121,27 @@ private fun AssistantUi(
             currentOnEvent(AssistantEvent.OnSpeechUnavailable)
         }
     }
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let { currentOnEvent(AssistantEvent.OnPhotoPick(it.toString())) }
+    }
+    var cameraUri by rememberSaveable { mutableStateOf<String?>(null) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
+        cameraUri?.takeIf { saved }?.let { currentOnEvent(AssistantEvent.OnPhotoPick(it)) }
+    }
+    val photoActions = PhotoActions(
+        takePhoto = {
+            val uri = newPhotoUri()
+            cameraUri = uri
+            try {
+                camera.launch(Uri.parse(uri))
+            } catch (_: ActivityNotFoundException) {
+                currentOnEvent(AssistantEvent.OnCameraUnavailable)
+            }
+        },
+        pickPhoto = {
+            photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        },
+    )
     LaunchedEffect(state.listenOnStart) {
         if (state.listenOnStart) {
             currentOnEvent(AssistantEvent.OnListenOnStartHandled)
@@ -109,7 +150,7 @@ private fun AssistantUi(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        AssistantScaffold(state = state, onEvent = onEvent, onListen = listen)
+        AssistantScaffold(state = state, onEvent = onEvent, onListen = listen, photoActions = photoActions)
         state.settings?.let { settings ->
             SettingsDialog(settings = settings, onEvent = onEvent)
         }
@@ -122,6 +163,7 @@ private fun AssistantScaffold(
     state: AssistantState,
     onEvent: (AssistantEvent) -> Unit,
     onListen: () -> Unit,
+    photoActions: PhotoActions,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -153,9 +195,11 @@ private fun AssistantScaffold(
         bottomBar = {
             InputBar(
                 input = state.input,
+                attachment = state.attachment,
                 sending = state.sending,
                 onEvent = onEvent,
                 onListen = onListen,
+                photoActions = photoActions,
             )
         },
         content = { padding ->
@@ -250,12 +294,14 @@ private fun MessageItem(
         is ChatMessage.User -> Bubble(
             modifier = modifier,
             text = message.text,
+            imageUri = message.imageUri,
             fromUser = true,
         )
 
         is ChatMessage.Assistant -> Bubble(
             modifier = modifier,
             text = message.text,
+            imageUri = null,
             fromUser = false,
         )
 
@@ -265,9 +311,9 @@ private fun MessageItem(
             error = true,
         )
 
-        is ChatMessage.SpeechUnavailable -> Notice(
+        is ChatMessage.Notice -> Notice(
             modifier = modifier,
-            text = stringResource(R.string.assistant_speech_unavailable),
+            text = stringResource(message.kind.textRes()),
             error = true,
         )
 
@@ -288,6 +334,7 @@ private fun MessageItem(
 @Composable
 private fun Bubble(
     text: String,
+    imageUri: String?,
     fromUser: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -301,11 +348,25 @@ private fun Bubble(
             color = if (fromUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
             contentColor = if (fromUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
         ) {
-            Text(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                text = text,
-                style = MaterialTheme.typography.bodyLarge,
-            )
+            Column {
+                imageUri?.let {
+                    AsyncImage(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = BubbleImageMaxHeight.dp),
+                        model = it,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+                if (text.isNotBlank()) {
+                    Text(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        text = text,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
         }
     }
 }
@@ -373,41 +434,117 @@ private fun TransactionCard(
     }
 }
 
+/** Opens the camera or the photo picker; the photo comes back as [AssistantEvent.OnPhotoPick]. */
+@Stable
+private class PhotoActions(
+    val takePhoto: () -> Unit,
+    val pickPhoto: () -> Unit,
+)
+
 @Composable
 private fun InputBar(
     input: String,
+    attachment: String?,
     sending: Boolean,
     onEvent: (AssistantEvent) -> Unit,
     onListen: () -> Unit,
+    photoActions: PhotoActions,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        OutlinedTextField(
-            modifier = Modifier.weight(1f),
-            value = input,
-            onValueChange = { onEvent(AssistantEvent.OnInputChange(it)) },
-            placeholder = { Text(text = stringResource(R.string.assistant_input_hint)) },
-            maxLines = InputMaxLines,
-            shape = RoundedCornerShape(24.dp),
-        )
-        IconButton(onClick = onListen, enabled = !sending) {
+        attachment?.let {
+            AttachmentPreview(uri = it, onEvent = onEvent)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AttachButton(enabled = !sending, photoActions = photoActions)
+            OutlinedTextField(
+                modifier = Modifier.weight(1f),
+                value = input,
+                onValueChange = { onEvent(AssistantEvent.OnInputChange(it)) },
+                placeholder = { Text(text = stringResource(R.string.assistant_input_hint)) },
+                maxLines = InputMaxLines,
+                shape = RoundedCornerShape(24.dp),
+            )
+            IconButton(onClick = onListen, enabled = !sending) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_vue_media_microphone),
+                    contentDescription = stringResource(R.string.assistant_voice),
+                )
+            }
+            IconButton(
+                onClick = { onEvent(AssistantEvent.OnSendClick) },
+                enabled = !sending && (input.isNotBlank() || attachment != null),
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = stringResource(R.string.assistant_send),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AttachButton(
+    enabled: Boolean,
+    photoActions: PhotoActions,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier) {
+        IconButton(onClick = { expanded = true }, enabled = enabled) {
             Icon(
-                painter = painterResource(R.drawable.ic_vue_media_microphone),
-                contentDescription = stringResource(R.string.assistant_voice),
+                imageVector = Icons.Filled.AddAPhoto,
+                contentDescription = stringResource(R.string.assistant_attach_photo),
             )
         }
-        IconButton(
-            onClick = { onEvent(AssistantEvent.OnSendClick) },
-            enabled = !sending && input.isNotBlank(),
-        ) {
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(text = stringResource(R.string.assistant_take_photo)) },
+                leadingIcon = { Icon(imageVector = Icons.Filled.PhotoCamera, contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    photoActions.takePhoto()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(text = stringResource(R.string.assistant_choose_photo)) },
+                leadingIcon = { Icon(imageVector = Icons.Filled.PhotoLibrary, contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    photoActions.pickPhoto()
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AttachmentPreview(
+    uri: String,
+    onEvent: (AssistantEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.padding(bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AsyncImage(
+            modifier = Modifier
+                .size(AttachmentPreviewSize.dp)
+                .clip(RoundedCornerShape(8.dp)),
+            model = uri,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+        )
+        IconButton(onClick = { onEvent(AssistantEvent.OnPhotoRemove) }) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.Send,
-                contentDescription = stringResource(R.string.assistant_send),
+                imageVector = Icons.Filled.Close,
+                contentDescription = stringResource(R.string.assistant_remove_photo),
             )
         }
     }
@@ -474,6 +611,15 @@ private fun SettingsDialog(
     )
 }
 
+@StringRes
+private fun NoticeKind.textRes(): Int = when (this) {
+    NoticeKind.SpeechUnavailable -> R.string.assistant_speech_unavailable
+    NoticeKind.CameraUnavailable -> R.string.assistant_camera_unavailable
+    NoticeKind.PhotoUnreadable -> R.string.assistant_photo_unreadable
+}
+
 private const val ApiKeyUrl = "https://aistudio.google.com/apikey"
 private const val BubbleMaxWidth = 300
 private const val InputMaxLines = 4
+private const val BubbleImageMaxHeight = 240
+private const val AttachmentPreviewSize = 56

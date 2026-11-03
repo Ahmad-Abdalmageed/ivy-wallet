@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Receipt photos taken with the camera for the assistant -->
+    <cache-path
+        name="receipts"
+        path="receipts/" />
+</paths>
