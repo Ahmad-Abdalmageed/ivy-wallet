@@ -2,9 +2,11 @@ package com.ivy.reports
 
 import android.content.Context
 import com.ivy.data.model.Transaction
+import com.ivy.navigation.ReportFilterArgs
 
 sealed class ReportScreenEvent {
     data class OnFilter(val filter: ReportFilter?) : ReportScreenEvent()
+    data class OnInitialFilter(val args: ReportFilterArgs) : ReportScreenEvent()
     data class OnExport(val context: Context) : ReportScreenEvent()
     data class OnPayOrGet(val transaction: Transaction) : ReportScreenEvent()
     data class SkipTransaction(val transaction: Transaction) : ReportScreenEvent()

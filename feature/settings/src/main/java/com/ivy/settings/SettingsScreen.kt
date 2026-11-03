@@ -50,6 +50,7 @@ import com.ivy.legacy.utils.drawColoredShadow
 import com.ivy.navigation.AttributionsScreen
 import com.ivy.navigation.ContributorsScreen
 import com.ivy.navigation.ExchangeRatesScreen
+import com.ivy.navigation.ExternalCommandsScreen
 import com.ivy.navigation.FeaturesScreen
 import com.ivy.navigation.ImportScreen
 import com.ivy.navigation.Navigation
@@ -324,6 +325,15 @@ private fun BoxWithConstraintsScope.UI(
                 text = stringResource(R.string.exchange_rates),
             ) {
                 nav.navigateTo(ExchangeRatesScreen)
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            SettingsDefaultButton(
+                icon = R.drawable.ic_custom_connect_m,
+                text = stringResource(R.string.external_commands),
+            ) {
+                nav.navigateTo(ExternalCommandsScreen)
             }
 
             Spacer(Modifier.height(12.dp))

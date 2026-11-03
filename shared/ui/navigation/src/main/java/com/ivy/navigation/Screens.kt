@@ -4,6 +4,7 @@ import com.ivy.base.legacy.Transaction
 import com.ivy.base.model.TransactionType
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import java.time.Instant
 import java.util.UUID
 
 data object MainScreen : Screen {
@@ -102,10 +103,33 @@ data class ImportScreen(
         get() = true
 }
 
-data object ReportScreen : Screen {
+/**
+ * @param initialFilter the filter to apply when the screen opens, null keeps the current one
+ */
+data class ReportScreen(
+    val initialFilter: ReportFilterArgs?,
+) : Screen {
     override val isLegacy: Boolean
         get() = true
 }
+
+/**
+ * Transactions of the [transactionTypes] between [from] and [to] (inclusive)
+ * in the accounts and categories with the given ids.
+ * Only transactions with one of the [includedTagIds] and none of the [excludedTagIds]
+ * are shown; empty lists don't filter.
+ */
+@Suppress("DataClassTypedIDs")
+data class ReportFilterArgs(
+    val transactionTypes: List<TransactionType>,
+    val from: Instant,
+    val to: Instant,
+    val accountIds: List<UUID>,
+    val categoryIds: List<UUID>,
+    val includeUncategorized: Boolean,
+    val includedTagIds: List<UUID>,
+    val excludedTagIds: List<UUID>,
+)
 
 data object BudgetScreen : Screen {
     override val isLegacy: Boolean
@@ -145,3 +169,7 @@ data object ReleasesScreen : Screen
 data object DisclaimerScreen : Screen
 
 data object PollScreen : Screen
+
+data object StatsScreen : Screen
+
+data object ExternalCommandsScreen : Screen
