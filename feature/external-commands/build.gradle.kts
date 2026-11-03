@@ -14,6 +14,7 @@ dependencies {
     implementation(projects.shared.ui.navigation)
 
     implementation(libs.datastore)
+    implementation(libs.bundles.ktor)
 
     testImplementation(projects.shared.ui.testing)
 }

@@ -31,7 +31,7 @@ The assistant runs on your computer and reaches the phone through `adb`, with th
    - Debug builds: add `"IVY_PACKAGE": "com.ivy.wallet.debug"`.
 3. Ask the assistant.
 
-The Claude and Gemini phone apps can't call apps on the phone, so they can't use this.
+The Claude and Gemini phone apps can't call apps on the phone, so they can't use this. On the phone, use the [in-app assistant](Assistant.md).
 
 ## The API
 
