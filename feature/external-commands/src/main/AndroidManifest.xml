@@ -8,5 +8,16 @@
             android:name="com.ivy.commands.provider.IvyCommandsProvider"
             android:authorities="${applicationId}.commands"
             android:exported="true" />
+
+        <!-- Gives the camera app a file to save receipt photos for the assistant -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.assistant.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/assistant_file_paths" />
+        </provider>
     </application>
 </manifest>

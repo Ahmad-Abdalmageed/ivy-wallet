@@ -35,10 +35,12 @@ class AssistantViewModel @Inject constructor(
     private val agent: AssistantAgent,
     private val settings: AssistantSettings,
     private val processor: CommandProcessor,
+    private val receiptImages: ReceiptImages,
     private val navigation: Navigation,
 ) : ComposeViewModel<AssistantState, AssistantEvent>() {
     private var messages by mutableStateOf<ImmutableList<ChatMessage>>(persistentListOf())
     private var input by mutableStateOf("")
+    private var attachment by mutableStateOf<String?>(null)
     private var sending by mutableStateOf(false)
     private var hasApiKey by mutableStateOf<Boolean?>(null)
     private var settingsUi by mutableStateOf<AssistantSettingsUi?>(null)
@@ -70,6 +72,7 @@ class AssistantViewModel @Inject constructor(
         return AssistantState(
             messages = messages,
             input = input,
+            attachment = attachment,
             sending = sending,
             hasApiKey = hasApiKey,
             settings = settingsUi,
@@ -83,7 +86,10 @@ class AssistantViewModel @Inject constructor(
             is AssistantEvent.OnInputChange -> input = event.input
             AssistantEvent.OnSendClick -> send(input)
             is AssistantEvent.OnSpeechResult -> send(event.text)
-            AssistantEvent.OnSpeechUnavailable -> add { ChatMessage.SpeechUnavailable(it) }
+            AssistantEvent.OnSpeechUnavailable -> add { ChatMessage.Notice(it, NoticeKind.SpeechUnavailable) }
+            is AssistantEvent.OnPhotoPick -> attachment = event.uri
+            AssistantEvent.OnPhotoRemove -> attachment = null
+            AssistantEvent.OnCameraUnavailable -> add { ChatMessage.Notice(it, NoticeKind.CameraUnavailable) }
             AssistantEvent.OnListenOnStartHandled -> listenOnStart = false
             is AssistantEvent.OnExampleClick -> send(event.text)
             is AssistantEvent.OnUndoClick -> undo(event.message)
@@ -122,26 +128,41 @@ class AssistantViewModel @Inject constructor(
         }
     }
 
+    /**
+     * @return a content uri for the camera app to save a receipt photo to
+     */
+    fun newPhotoUri(): String = receiptImages.newPhotoUri().toString()
+
     private fun send(text: String) {
         val message = text.trim()
-        if (message.isEmpty() || sending) return
+        val image = attachment
+        if ((message.isEmpty() && image == null) || sending) return
         input = ""
-        add { ChatMessage.User(it, message) }
+        attachment = null
+        add { ChatMessage.User(it, message, image) }
         sending = true
         viewModelScope.launch {
-            val config = settings.config()
-            if (config == null) {
-                hasApiKey = false
-                openSettings()
-                sending = false
-                return@launch
-            }
-            agent.send(message, config) { action -> show(action) }.fold(
-                ifLeft = { error -> add { ChatMessage.Error(it, error) } },
-                ifRight = { reply -> add { ChatMessage.Assistant(it, reply.ifBlank { DONE }) } },
-            )
+            reply(message, image)
             sending = false
         }
+    }
+
+    private suspend fun reply(message: String, image: String?) {
+        val config = settings.config()
+        if (config == null) {
+            hasApiKey = false
+            openSettings()
+            return
+        }
+        val jpeg = image?.let { receiptImages.jpeg(it) }
+        if (image != null && jpeg == null) {
+            add { ChatMessage.Notice(it, NoticeKind.PhotoUnreadable) }
+            return
+        }
+        agent.send(message, jpeg, config) { action -> show(action) }.fold(
+            ifLeft = { error -> add { ChatMessage.Error(it, error) } },
+            ifRight = { reply -> add { ChatMessage.Assistant(it, reply.ifBlank { DONE }) } },
+        )
     }
 
     private fun show(action: AssistantAction) {

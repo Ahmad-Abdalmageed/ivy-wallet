@@ -24,6 +24,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import java.time.format.DateTimeFormatter
+import java.util.Base64
 import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
@@ -68,16 +69,18 @@ class AssistantAgent @Inject constructor(
     }
 
     /**
+     * @param image a JPEG photo, e.g. of a receipt, sent with the message
      * @return the assistant's reply
      */
     suspend fun send(
         message: String,
+        image: ByteArray?,
         config: AssistantConfig,
         onAction: suspend (AssistantAction) -> Unit,
     ): Either<String, String> {
         val start = contents.size
         val actions = mutableListOf<String>()
-        contents += userText(withNotes(message))
+        contents += userMessage(withNotes(message.ifBlank { RECEIPT_REQUEST }), image)
         val result = either {
             val system = systemPrompt()
             repeat(MAX_STEPS) {
@@ -162,6 +165,7 @@ class AssistantAgent @Inject constructor(
 
             Today is ${today.format(DateTimeFormatter.ofPattern("EEEE, yyyy-MM-dd", Locale.ENGLISH))}.
             Base currency: ${currencyRepository.getBaseCurrency().code}.
+            The phone's language: ${Locale.getDefault().getDisplayLanguage(Locale.ENGLISH)}.
             Accounts: ${accounts.ifEmpty { "none" }}.
             Categories: ${categories.ifEmpty { "none" }}.
             Tags: ${tags.ifEmpty { "none" }}.
@@ -176,14 +180,27 @@ class AssistantAgent @Inject constructor(
             - For questions about spending or income, call list_transactions with from/to dates and use
               its totals.
             - Delete a transaction only when the user asks to, using its id.
+            - For a photo of a receipt or bill: add one expense for its total, titled with the
+              merchant, on the receipt's date and in its currency, unless the user asks to split it.
+              If you can't read the total, say so instead of guessing.
             - After changing something, say in one short sentence what was saved. Answer in the user's
-              language and keep replies short.
+              language (the phone's language when they only send a photo) and keep replies short.
         """.trimIndent()
     }
 
-    private fun userText(text: String): JsonObject = buildJsonObject {
+    private fun userMessage(text: String, image: ByteArray?): JsonObject = buildJsonObject {
         put("role", "user")
-        putJsonArray("parts") { addJsonObject { put("text", text) } }
+        putJsonArray("parts") {
+            if (image != null) {
+                addJsonObject {
+                    putJsonObject("inlineData") {
+                        put("mimeType", "image/jpeg")
+                        put("data", Base64.getEncoder().encodeToString(image))
+                    }
+                }
+            }
+            addJsonObject { put("text", text) }
+        }
     }
 
     private fun JsonObject.parts(): List<JsonObject> =
@@ -200,5 +217,6 @@ class AssistantAgent @Inject constructor(
 
     companion object {
         private const val MAX_STEPS = 10
+        private const val RECEIPT_REQUEST = "Add the expenses from this receipt."
     }
 }

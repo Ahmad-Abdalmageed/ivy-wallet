@@ -96,7 +96,7 @@ class AssistantAgentTest {
         coEvery { processor.execute("add_transaction", capture(args)) } returns Either.Right(saved)
         val actions = mutableListOf<AssistantAction>()
 
-        val reply = agent.send("spent 25 on food", config) { actions += it }
+        val reply = agent.send("spent 25 on food", null, config) { actions += it }
 
         reply shouldBe Either.Right("Saved 25 EGP for food.")
         args.captured.double("amount") shouldBe 25.0
@@ -126,7 +126,7 @@ class AssistantAgentTest {
         coEvery { processor.execute(any(), any()) } returns Either.Left("Unknown account 'Wallet'.")
 
         val actions = mutableListOf<AssistantAction>()
-        agent.send("spent 5 from wallet", config) { actions += it } shouldBe Either.Right("Which account?")
+        agent.send("spent 5 from wallet", null, config) { actions += it } shouldBe Either.Right("Which account?")
 
         actions shouldBe emptyList()
         requests[1][2]["parts"]!!.jsonArray[0].jsonObject["functionResponse"]!!.jsonObject["response"]!!
@@ -137,9 +137,9 @@ class AssistantAgentTest {
     fun `keeps the conversation and notes undone transactions`() = runTest {
         replies(model("""{"text": "Hi"}"""), model("""{"text": "OK"}"""))
 
-        agent.send("hello", config) {}
+        agent.send("hello", null, config) {}
         agent.noteUndo(TransactionId(UUID.fromString("5e6f3b52-7c0d-4f7e-9a3b-0f1e2d3c4b5a")))
-        agent.send("thanks", config) {}
+        agent.send("thanks", null, config) {}
 
         val second = requests[1]
         second.size shouldBe 3
@@ -151,20 +151,34 @@ class AssistantAgentTest {
     fun `an error leaves the conversation as it was`() = runTest {
         replies(Either.Left("Gemini: API key not valid."), model("""{"text": "Hi"}"""))
 
-        agent.send("hello", config) {} shouldBe Either.Left("Gemini: API key not valid.")
-        agent.send("hello again", config) {} shouldBe Either.Right("Hi")
+        agent.send("hello", null, config) {} shouldBe Either.Left("Gemini: API key not valid.")
+        agent.send("hello again", null, config) {} shouldBe Either.Right("Hi")
 
         requests[1].size shouldBe 1
         coVerify(exactly = 0) { processor.execute(any(), any()) }
     }
 
     @Test
+    fun `sends a photo with the message`() = runTest {
+        replies(model("""{"text": "Saved 85 EGP from Carrefour."}"""))
+
+        agent.send("", byteArrayOf(1, 2, 3), config) {}
+
+        val parts = requests[0][0]["parts"]!!.jsonArray
+        val image = parts[0].jsonObject["inlineData"]!!.jsonObject
+        image["mimeType"]!!.jsonPrimitive.content shouldBe "image/jpeg"
+        image["data"]!!.jsonPrimitive.content shouldBe "AQID"
+        parts[1].jsonObject["text"]!!.jsonPrimitive.content shouldBe "Add the expenses from this receipt."
+        systems.captured shouldContain "photo of a receipt"
+    }
+
+    @Test
     fun `new chat`() = runTest {
         replies(model("""{"text": "Hi"}"""), model("""{"text": "Hi again"}"""))
 
-        agent.send("hello", config) {}
+        agent.send("hello", null, config) {}
         agent.reset()
-        agent.send("hello", config) {}
+        agent.send("hello", null, config) {}
 
         requests[1].size shouldBe 1
     }

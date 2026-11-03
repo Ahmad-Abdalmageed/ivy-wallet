@@ -537,7 +537,7 @@
     <string name="assistant_title">Assistant</string>
     <string name="assistant_shortcut">Ask Ivy</string>
     <string name="assistant_shortcut_long">Ask the Ivy assistant</string>
-    <string name="assistant_welcome">Tell me what you spent, received or moved between accounts, by typing or with the microphone. I can also tell you how much you spent.</string>
+    <string name="assistant_welcome">Tell me what you spent, received or moved between accounts, by typing, with the microphone or with a photo of a receipt. I can also tell you how much you spent.</string>
     <string name="assistant_example_1">Spent 120 on groceries from Cash</string>
     <string name="assistant_example_2">Got my salary of 15000 in the bank yesterday</string>
     <string name="assistant_example_3">How much did I spend on food this month?</string>
@@ -561,4 +561,10 @@
     <string name="assistant_model">Model</string>
     <string name="assistant_remove_key">Remove the saved key</string>
     <string name="assistant_cancel">Cancel</string>
+    <string name="assistant_attach_photo">Add a receipt photo</string>
+    <string name="assistant_take_photo">Take a photo</string>
+    <string name="assistant_choose_photo">Choose from gallery</string>
+    <string name="assistant_remove_photo">Remove the photo</string>
+    <string name="assistant_camera_unavailable">No camera app is available on this phone.</string>
+    <string name="assistant_photo_unreadable">Couldn\'t read the photo. Try another one.</string>
 </resources>
