@@ -1,7 +1,6 @@
 package com.ivy.commands.command
 
 import arrow.core.Either
-import com.ivy.base.time.TimeProvider
 import com.ivy.data.model.Account
 import com.ivy.data.model.Expense
 import com.ivy.data.model.Income
@@ -13,19 +12,12 @@ import com.ivy.data.model.Transfer
 import com.ivy.data.model.primitive.AssetCode
 import com.ivy.data.model.primitive.AssociationId
 import com.ivy.data.model.primitive.PositiveDouble
-import com.ivy.data.repository.AccountRepository
-import com.ivy.data.repository.CategoryRepository
-import com.ivy.data.repository.CurrencyRepository
-import com.ivy.data.repository.ExchangeRatesRepository
-import com.ivy.data.repository.TagRepository
-import com.ivy.data.repository.TransactionRepository
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
-import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
@@ -46,13 +38,14 @@ import java.time.ZoneOffset
 import java.util.UUID
 
 class CommandProcessorTest {
-    private val accountRepository = mockk<AccountRepository>()
-    private val categoryRepository = mockk<CategoryRepository>()
-    private val tagRepository = mockk<TagRepository>(relaxUnitFun = true)
-    private val transactionRepository = mockk<TransactionRepository>(relaxUnitFun = true)
-    private val exchangeRatesRepository = mockk<ExchangeRatesRepository>()
-    private val currencyRepository = mockk<CurrencyRepository>()
-    private val timeProvider = mockk<TimeProvider>()
+    private val commands = TestCommands()
+    private val accountRepository = commands.accountRepository
+    private val categoryRepository = commands.categoryRepository
+    private val tagRepository = commands.tagRepository
+    private val transactionRepository = commands.transactionRepository
+    private val exchangeRatesRepository = commands.exchangeRatesRepository
+    private val currencyRepository = commands.currencyRepository
+    private val timeProvider = commands.timeProvider
 
     private val cash = account("Cash", "EGP")
     private val bank = account("Bank Misr", "EGP")
@@ -69,15 +62,7 @@ class CommandProcessorTest {
         loanRecordId = null,
     )
 
-    private val processor = CommandProcessor(
-        accountRepository = accountRepository,
-        categoryRepository = categoryRepository,
-        tagRepository = tagRepository,
-        transactionRepository = transactionRepository,
-        exchangeRatesRepository = exchangeRatesRepository,
-        currencyRepository = currencyRepository,
-        timeProvider = timeProvider,
-    )
+    private val processor = commands.processor
 
     @Before
     fun setup() {
@@ -214,13 +199,17 @@ class CommandProcessorTest {
             expense(1.0, dollars),
             income(100.0, cash),
         )
+        coEvery { transactionRepository.findAllDueToBetween(any(), any()) } returns listOf(
+            expense(7.0, cash, settled = false),
+        )
 
         val result = run(
             "list_transactions",
             """{"from": "2026-10-01", "to": "today", "type": "expense", "limit": 1}""",
         ).getOrNull()!!.jsonObject
 
-        result["count"]?.jsonPrimitive?.content shouldBe "2"
+        // Two paid expenses and a planned one, which isn't in the totals.
+        result["count"]?.jsonPrimitive?.content shouldBe "3"
         // 30 EGP + 1 USD (50 EGP)
         result["total_expenses"]?.jsonPrimitive?.content shouldBe "80.0"
         (result["transactions"] as JsonArray).size shouldBe 1
