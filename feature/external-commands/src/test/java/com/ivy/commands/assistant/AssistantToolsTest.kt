@@ -1,5 +1,6 @@
 package com.ivy.commands.assistant
 
+import com.ivy.commands.command.Command
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
@@ -14,14 +15,9 @@ class AssistantToolsTest {
 
     @Test
     fun `declares every command except help`() {
-        declarations.keys shouldBe setOf(
-            "list_accounts",
-            "list_categories",
-            "list_tags",
-            "add_transaction",
-            "list_transactions",
-            "delete_transaction",
-        )
+        declarations.keys shouldBe Command.entries.filter { it != Command.Help }.map { it.method }.toSet()
+        declarations.keys.containsAll(listOf("add_budget", "add_planned_payment", "update_transaction")) shouldBe
+            true
         declarations.getValue("list_accounts")["parameters"] shouldBe null
     }
 
@@ -38,6 +34,11 @@ class AssistantToolsTest {
         parameters["required"]!!.jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("amount")
         declarations.getValue("list_transactions")["parameters"]!!.jsonObject["properties"]!!.jsonObject
             .type("limit") shouldBe "integer"
+        val budget = declarations.getValue("add_budget")["parameters"]!!.jsonObject
+        budget["properties"]!!.jsonObject.type("categories") shouldBe "array"
+        budget["required"]!!.jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("name", "amount")
+        declarations.getValue("add_account")["parameters"]!!.jsonObject["properties"]!!.jsonObject
+            .type("include_in_balance") shouldBe "boolean"
     }
 
     private fun JsonObject.type(name: String): String = this[name]!!.jsonObject["type"]!!.jsonPrimitive.content
