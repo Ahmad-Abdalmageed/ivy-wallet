@@ -567,4 +567,5 @@
     <string name="assistant_remove_photo">Remove the photo</string>
     <string name="assistant_camera_unavailable">No camera app is available on this phone.</string>
     <string name="assistant_photo_unreadable">Couldn\'t read the photo. Try another one.</string>
+    <string name="cashflow_of_income">%1$s of income</string>
 </resources>

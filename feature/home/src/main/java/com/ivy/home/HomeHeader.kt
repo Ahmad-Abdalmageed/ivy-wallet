@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -268,24 +269,54 @@ fun CashFlowInfo(
         if (cashflow != 0.0 && !hideBalance) {
             Spacer(Modifier.height(12.dp))
 
-            Text(
-                modifier = Modifier.padding(
-                    start = 24.dp,
-                ),
-                text = stringResource(
-                    R.string.cashflow,
-                    (if (cashflow > 0) "+" else ""),
-                    cashflow.format(currency),
-                    currency,
-                ),
-                style = UI.typo.nB2.style(
-                    color = if (cashflow < 0) Gray else Green,
-                ),
+            Cashflow(
+                currency = currency,
+                monthlyIncome = monthlyIncome,
+                monthlyExpenses = monthlyExpenses,
             )
 
             Spacer(Modifier.height(4.dp))
         } else {
             Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun Cashflow(
+    currency: String,
+    monthlyIncome: Double,
+    monthlyExpenses: Double,
+    modifier: Modifier = Modifier,
+) {
+    val cashflow = monthlyIncome - monthlyExpenses
+    Row(
+        modifier = modifier.padding(horizontal = 24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(
+                R.string.cashflow,
+                (if (cashflow > 0) "+" else ""),
+                cashflow.format(currency),
+                currency,
+            ),
+            style = UI.typo.nB2.style(
+                color = if (cashflow < 0) Gray else Green,
+            ),
+        )
+
+        cashflowShareOfIncome(monthlyIncome, monthlyExpenses)?.let { share ->
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = stringResource(
+                    R.string.cashflow_of_income,
+                    formatPercent(share, LocalConfiguration.current.locales[0]),
+                ),
+                style = UI.typo.nC.style(color = Gray),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
