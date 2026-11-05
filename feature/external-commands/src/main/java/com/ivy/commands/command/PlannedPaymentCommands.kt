@@ -3,7 +3,6 @@ package com.ivy.commands.command
 import arrow.core.raise.Raise
 import arrow.core.raise.ensure
 import arrow.core.raise.ensureNotNull
-import com.ivy.base.model.IntervalType
 import com.ivy.base.model.TransactionType
 import com.ivy.data.db.dao.read.PlannedPaymentRuleDao
 import com.ivy.data.db.dao.write.WritePlannedPaymentRuleDao
@@ -12,6 +11,7 @@ import com.ivy.data.model.Account
 import com.ivy.data.model.CategoryId
 import com.ivy.data.model.Expense
 import com.ivy.data.model.Income
+import com.ivy.data.model.IntervalType
 import com.ivy.data.model.PositiveValue
 import com.ivy.data.model.Transaction
 import com.ivy.data.model.TransactionId

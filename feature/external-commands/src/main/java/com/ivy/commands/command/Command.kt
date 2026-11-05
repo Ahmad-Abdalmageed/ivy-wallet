@@ -42,13 +42,13 @@ private fun list(name: String, description: String): Argument = Argument(name, d
 private fun choice(name: String, description: String, options: List<String>, required: Boolean = false): Argument =
     Argument(name, description, ArgumentType.Text, required, options)
 
-private const val NAME_OR_ID = "name or id"
-private const val DATE = "YYYY-MM-DD, YYYY-MM-DDTHH:MM, today or yesterday"
-private const val COLOR = "optional color, #RRGGBB"
-private const val ICON = "optional Ivy icon name, e.g. food, car, home"
-private val TRANSACTION_TYPES = listOf("expense", "income", "transfer")
-private val PLANNED_TYPES = listOf("expense", "income")
-private val REPEATS = listOf("once", "day", "week", "month", "year")
+private const val NameOrId = "name or id"
+private const val DateFormats = "YYYY-MM-DD, YYYY-MM-DDTHH:MM, today or yesterday"
+private const val ColorHint = "optional color, #RRGGBB"
+private const val IconHint = "optional Ivy icon name, e.g. food, car, home"
+private val TransactionTypes = listOf("expense", "income", "transfer")
+private val PlannedTypes = listOf("expense", "income")
+private val RepeatOptions = listOf("once", "day", "week", "month", "year")
 
 /**
  * The commands other apps and the in-app assistant can run, with their arguments.
@@ -82,15 +82,15 @@ enum class Command(
             text("currency", "optional currency code; default the base currency"),
             number("balance", "optional starting balance; recorded as an 'Adjust balance' transaction"),
             bool("include_in_balance", "optional; false hides it from the total balance; default true"),
-            text("color", COLOR),
-            text("icon", ICON),
+            text("color", ColorHint),
+            text("icon", IconHint),
         ),
     ),
     UpdateAccount(
         method = "update_account",
         description = "Changes an account. Only the given fields change.",
         arguments = listOf(
-            text("account", "required account $NAME_OR_ID", required = true),
+            text("account", "required account $NameOrId", required = true),
             text("name", "optional new name"),
             text("currency", "optional new currency code; existing amounts aren't converted"),
             number(
@@ -98,14 +98,14 @@ enum class Command(
                 "optional new current balance; the difference is recorded as an 'Adjust balance' transaction",
             ),
             bool("include_in_balance", "optional"),
-            text("color", COLOR),
-            text("icon", ICON),
+            text("color", ColorHint),
+            text("icon", IconHint),
         ),
     ),
     DeleteAccount(
         method = "delete_account",
         description = "Deletes an account with all its transactions and planned payments. Can't be undone.",
-        arguments = listOf(text("account", "required account $NAME_OR_ID", required = true)),
+        arguments = listOf(text("account", "required account $NameOrId", required = true)),
     ),
 
     // Categories
@@ -119,24 +119,24 @@ enum class Command(
         description = "Adds a category.",
         arguments = listOf(
             text("name", "required, unique category name", required = true),
-            text("color", COLOR),
-            text("icon", ICON),
+            text("color", ColorHint),
+            text("icon", IconHint),
         ),
     ),
     UpdateCategory(
         method = "update_category",
         description = "Changes a category. Only the given fields change.",
         arguments = listOf(
-            text("category", "required category $NAME_OR_ID", required = true),
+            text("category", "required category $NameOrId", required = true),
             text("name", "optional new name"),
-            text("color", COLOR),
-            text("icon", ICON),
+            text("color", ColorHint),
+            text("icon", IconHint),
         ),
     ),
     DeleteCategory(
         method = "delete_category",
         description = "Deletes a category. Its transactions stay, without a category.",
-        arguments = listOf(text("category", "required category $NAME_OR_ID", required = true)),
+        arguments = listOf(text("category", "required category $NameOrId", required = true)),
     ),
 
     // Tags
@@ -151,23 +151,23 @@ enum class Command(
         arguments = listOf(
             text("name", "required, unique tag name", required = true),
             text("description", "optional"),
-            text("color", COLOR),
+            text("color", ColorHint),
         ),
     ),
     UpdateTag(
         method = "update_tag",
         description = "Changes a tag. Only the given fields change.",
         arguments = listOf(
-            text("tag", "required tag $NAME_OR_ID", required = true),
+            text("tag", "required tag $NameOrId", required = true),
             text("name", "optional new name"),
             text("description", "optional; 'none' clears it"),
-            text("color", COLOR),
+            text("color", ColorHint),
         ),
     ),
     DeleteTag(
         method = "delete_tag",
         description = "Deletes a tag and removes it from its transactions.",
-        arguments = listOf(text("tag", "required tag $NAME_OR_ID", required = true)),
+        arguments = listOf(text("tag", "required tag $NameOrId", required = true)),
     ),
 
     // Transactions
@@ -175,16 +175,16 @@ enum class Command(
         method = "add_transaction",
         description = "Adds an expense, an income or a transfer between accounts.",
         arguments = listOf(
-            choice("type", "expense (default), income or transfer", TRANSACTION_TYPES),
+            choice("type", "expense (default), income or transfer", TransactionTypes),
             number("amount", "required, positive number", required = true),
-            text("account", "account $NAME_OR_ID; optional when there's only one account"),
+            text("account", "account $NameOrId; optional when there's only one account"),
             text("currency", "optional; when it isn't the account's currency the amount is converted"),
-            text("category", "optional category $NAME_OR_ID"),
+            text("category", "optional category $NameOrId"),
             text("title", "optional"),
             text("description", "optional"),
-            text("date", "optional: $DATE; default now"),
+            text("date", "optional: $DateFormats; default now"),
             list("tags", "optional tag names or ids, a list or comma separated"),
-            text("to_account", "transfers: the receiving account $NAME_OR_ID"),
+            text("to_account", "transfers: the receiving account $NameOrId"),
             number("to_amount", "transfers between currencies: the received amount; converted when missing"),
         ),
     ),
@@ -195,10 +195,10 @@ enum class Command(
         arguments = listOf(
             text("from", "optional first date, YYYY-MM-DD"),
             text("to", "optional last date, YYYY-MM-DD"),
-            choice("type", "optional: expense, income or transfer", TRANSACTION_TYPES),
-            text("account", "optional account $NAME_OR_ID"),
-            text("category", "optional category $NAME_OR_ID; 'none' for uncategorized"),
-            text("tag", "optional tag $NAME_OR_ID"),
+            choice("type", "optional: expense, income or transfer", TransactionTypes),
+            text("account", "optional account $NameOrId"),
+            text("category", "optional category $NameOrId; 'none' for uncategorized"),
+            text("tag", "optional tag $NameOrId"),
             choice(
                 "status",
                 "optional: paid, or planned for the upcoming transactions of planned payments; default both",
@@ -214,16 +214,16 @@ enum class Command(
         description = "Changes a transaction. Only the given fields change.",
         arguments = listOf(
             text("id", "required transaction id", required = true),
-            choice("type", "optional new type: expense, income or transfer", TRANSACTION_TYPES),
+            choice("type", "optional new type: expense, income or transfer", TransactionTypes),
             number("amount", "optional new amount"),
-            text("account", "optional account $NAME_OR_ID"),
+            text("account", "optional account $NameOrId"),
             text("currency", "optional currency of the new amount; converted to the account's currency"),
-            text("category", "optional category $NAME_OR_ID; 'none' removes it"),
+            text("category", "optional category $NameOrId; 'none' removes it"),
             text("title", "optional; 'none' clears it"),
             text("description", "optional; 'none' clears it"),
-            text("date", "optional: $DATE"),
+            text("date", "optional: $DateFormats"),
             list("tags", "optional, replaces the tags; an empty list removes them"),
-            text("to_account", "transfers: the receiving account $NAME_OR_ID"),
+            text("to_account", "transfers: the receiving account $NameOrId"),
             number("to_amount", "transfers: the received amount"),
         ),
     ),
@@ -247,8 +247,8 @@ enum class Command(
         arguments = listOf(
             text("from", "optional first date, YYYY-MM-DD; default the start of the current budget month"),
             text("to", "optional last date, YYYY-MM-DD; default today"),
-            choice("type", "optional: expense (default) or income", PLANNED_TYPES),
-            text("account", "optional account $NAME_OR_ID"),
+            choice("type", "optional: expense (default) or income", PlannedTypes),
+            text("account", "optional account $NameOrId"),
         ),
         changesData = false,
     ),
@@ -274,7 +274,7 @@ enum class Command(
         method = "update_budget",
         description = "Changes a budget. Only the given fields change.",
         arguments = listOf(
-            text("budget", "required budget $NAME_OR_ID", required = true),
+            text("budget", "required budget $NameOrId", required = true),
             text("name", "optional new name"),
             number("amount", "optional new monthly limit in the base currency"),
             list("categories", "optional, replaces the categories; an empty list means all"),
@@ -284,7 +284,7 @@ enum class Command(
     DeleteBudget(
         method = "delete_budget",
         description = "Deletes a budget. Transactions aren't changed.",
-        arguments = listOf(text("budget", "required budget $NAME_OR_ID", required = true)),
+        arguments = listOf(text("budget", "required budget $NameOrId", required = true)),
     ),
 
     // Planned payments
@@ -298,14 +298,14 @@ enum class Command(
         description = "Adds a planned payment. Its upcoming transactions are created as planned and " +
             "paid with pay_transaction.",
         arguments = listOf(
-            choice("type", "expense (default) or income", PLANNED_TYPES),
+            choice("type", "expense (default) or income", PlannedTypes),
             number("amount", "required, in the account's currency", required = true),
-            text("account", "account $NAME_OR_ID; optional when there's only one account"),
-            text("category", "optional category $NAME_OR_ID"),
+            text("account", "account $NameOrId; optional when there's only one account"),
+            text("category", "optional category $NameOrId"),
             text("title", "optional, e.g. 'Rent'"),
             text("description", "optional"),
-            text("start_date", "required first due date: $DATE", required = true),
-            choice("repeat", "once (default), day, week, month or year", REPEATS),
+            text("start_date", "required first due date: $DateFormats", required = true),
+            choice("repeat", "once (default), day, week, month or year", RepeatOptions),
             integer("every", "optional: repeat every N days/weeks/months/years; default 1"),
         ),
     ),
@@ -315,14 +315,14 @@ enum class Command(
             "Only the given fields change.",
         arguments = listOf(
             text("planned_payment", "required planned payment id or title", required = true),
-            choice("type", "optional: expense or income", PLANNED_TYPES),
+            choice("type", "optional: expense or income", PlannedTypes),
             number("amount", "optional"),
-            text("account", "optional account $NAME_OR_ID"),
-            text("category", "optional category $NAME_OR_ID; 'none' removes it"),
+            text("account", "optional account $NameOrId"),
+            text("category", "optional category $NameOrId; 'none' removes it"),
             text("title", "optional; 'none' clears it"),
             text("description", "optional; 'none' clears it"),
-            text("start_date", "optional: $DATE"),
-            choice("repeat", "optional: once, day, week, month or year", REPEATS),
+            text("start_date", "optional: $DateFormats"),
+            choice("repeat", "optional: once, day, week, month or year", RepeatOptions),
             integer("every", "optional"),
         ),
     ),
@@ -349,40 +349,40 @@ enum class Command(
             number("amount", "required", required = true),
             text(
                 "account",
-                "optional account $NAME_OR_ID; when given, the money moving in or out is " +
+                "optional account $NameOrId; when given, the money moving in or out is " +
                     "recorded there and the loan is in its currency",
             ),
             text("note", "optional"),
-            text("date", "optional: $DATE; default now"),
-            text("color", COLOR),
+            text("date", "optional: $DateFormats; default now"),
+            text("color", ColorHint),
         ),
     ),
     UpdateLoan(
         method = "update_loan",
         description = "Changes a loan. Only the given fields change.",
         arguments = listOf(
-            text("loan", "required loan $NAME_OR_ID", required = true),
+            text("loan", "required loan $NameOrId", required = true),
             text("name", "optional"),
             number("amount", "optional"),
             text("note", "optional; 'none' clears it"),
-            text("color", COLOR),
+            text("color", ColorHint),
         ),
     ),
     DeleteLoan(
         method = "delete_loan",
         description = "Deletes a loan with its records and their transactions.",
-        arguments = listOf(text("loan", "required loan $NAME_OR_ID", required = true)),
+        arguments = listOf(text("loan", "required loan $NameOrId", required = true)),
     ),
     AddLoanRecord(
         method = "add_loan_record",
         description = "Records a payment on a loan (decrease) or more money on it (increase).",
         arguments = listOf(
-            text("loan", "required loan $NAME_OR_ID", required = true),
+            text("loan", "required loan $NameOrId", required = true),
             number("amount", "required", required = true),
             choice("type", "decrease (a payment, default) or increase", listOf("decrease", "increase")),
-            text("account", "optional account $NAME_OR_ID; when given, the money is recorded there"),
+            text("account", "optional account $NameOrId; when given, the money is recorded there"),
             text("note", "optional"),
-            text("date", "optional: $DATE; default now"),
+            text("date", "optional: $DateFormats; default now"),
             bool("interest", "optional; true when this is interest"),
         ),
     ),

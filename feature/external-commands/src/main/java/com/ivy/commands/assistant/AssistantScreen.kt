@@ -73,7 +73,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.ivy.commands.command.CommandProcessor
+import com.ivy.commands.command.CommandGroup
 import com.ivy.design.system.colors.IvyColors
 import com.ivy.navigation.AssistantScreen
 import com.ivy.navigation.screenScopedViewModel
@@ -392,8 +392,8 @@ private fun TransactionCard(
     modifier: Modifier = Modifier,
 ) {
     val (label, color) = when (message.type) {
-        CommandProcessor.TYPE_INCOME -> R.string.income to IvyColors.Green.primary
-        CommandProcessor.TYPE_TRANSFER -> R.string.transfer to IvyColors.Purple.primary
+        CommandGroup.TYPE_INCOME -> R.string.income to IvyColors.Green.primary
+        CommandGroup.TYPE_TRANSFER -> R.string.transfer to IvyColors.Purple.primary
         else -> R.string.expense to IvyColors.Red.primary
     }
     Card(modifier = modifier.fillMaxWidth()) {

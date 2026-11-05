@@ -2,7 +2,6 @@ package com.ivy.commands.command
 
 import arrow.core.Either
 import com.ivy.base.legacy.SharedPrefs
-import com.ivy.base.model.IntervalType
 import com.ivy.base.model.LoanRecordType
 import com.ivy.base.model.TransactionType
 import com.ivy.data.db.entity.BudgetEntity
@@ -11,9 +10,10 @@ import com.ivy.data.db.entity.LoanRecordEntity
 import com.ivy.data.db.entity.PlannedPaymentRuleEntity
 import com.ivy.data.model.Account
 import com.ivy.data.model.Category
-import com.ivy.data.model.Expense
 import com.ivy.data.model.ExchangeRate
+import com.ivy.data.model.Expense
 import com.ivy.data.model.Income
+import com.ivy.data.model.IntervalType
 import com.ivy.data.model.LoanType
 import com.ivy.data.model.PositiveValue
 import com.ivy.data.model.Transaction
