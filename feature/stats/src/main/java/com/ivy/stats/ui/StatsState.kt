@@ -2,6 +2,7 @@ package com.ivy.stats.ui
 
 import androidx.compose.runtime.Immutable
 import com.ivy.stats.domain.PeriodPreset
+import com.ivy.stats.domain.StatsMetric
 import kotlinx.collections.immutable.ImmutableList
 import java.time.YearMonth
 
@@ -9,6 +10,7 @@ import java.time.YearMonth
 data class StatsState(
     val loading: Boolean,
     val currency: String,
+    val metric: StatsMetric,
     val preset: PeriodPreset,
     val from: YearMonth,
     val to: YearMonth,
@@ -30,7 +32,7 @@ data class MonthBar(
     val month: YearMonth,
     val amount: String,
     val shortAmount: String,
-    /** Bar height relative to the highest month, from 0 to 1. */
+    /** Bar height relative to the month with the largest value, from -1 to 1. */
     val fraction: Float,
 )
 

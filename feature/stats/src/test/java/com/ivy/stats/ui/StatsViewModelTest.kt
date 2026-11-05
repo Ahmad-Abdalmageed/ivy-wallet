@@ -14,12 +14,14 @@ import com.ivy.navigation.Navigation
 import com.ivy.navigation.ReportFilterArgs
 import com.ivy.navigation.ReportScreen
 import com.ivy.stats.domain.BaseCurrencyChanger
-import com.ivy.stats.domain.MonthlyExpensesCalculator
+import com.ivy.stats.domain.MonthlyTotalsCalculator
 import com.ivy.stats.domain.PeriodPreset
 import com.ivy.stats.domain.Zone
 import com.ivy.stats.domain.account
 import com.ivy.stats.domain.category
+import com.ivy.stats.domain.StatsMetric
 import com.ivy.stats.domain.expense
+import com.ivy.stats.domain.income
 import com.ivy.stats.domain.rate
 import com.ivy.stats.domain.tag
 import com.ivy.ui.FormatMoneyUseCase
@@ -36,6 +38,7 @@ import org.junit.Test
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
+import java.util.Locale
 
 class StatsViewModelTest : ComposeViewModelTest() {
     private val cash = account("Cash", "EUR")
@@ -58,12 +61,15 @@ class StatsViewModelTest : ComposeViewModelTest() {
         expense(10.0, cash, LocalDate.of(2026, 10, 2), category = food),
         expense(20.0, bank, LocalDate.of(2026, 9, 5), tags = listOf(work)),
         expense(5.0, cash, LocalDate.of(2026, 6, 1)),
+        income(100.0, cash, LocalDate.of(2026, 10, 3)),
+        income(40.0, bank, LocalDate.of(2026, 9, 1)),
     )
 
     private lateinit var viewModel: StatsViewModel
 
     @Before
     fun setup() {
+        Locale.setDefault(Locale.US)
         every { timeProvider.localDateNow() } returns today
         every { timeProvider.getZoneId() } returns Zone
         coEvery { accountRepository.findAll() } returns listOf(cash, bank)
@@ -205,6 +211,46 @@ class StatsViewModelTest : ComposeViewModelTest() {
         filter.excludedTagIds shouldBe listOf(work.id.value)
     }
 
+    @Test
+    fun `shows the income`() {
+        viewModel.runTest(events = listOf(StatsEvent.OnMetricSelect(StatsMetric.Income))) {
+            metric shouldBe StatsMetric.Income
+            // 40 USD = 20 EUR
+            bars.map { it.amount }.takeLast(2) shouldBe listOf("20 EUR", "100 EUR")
+            total shouldBe "120 EUR"
+        }
+    }
+
+    @Test
+    fun `shows the cashflow as a share of income`() {
+        viewModel.runTest(events = listOf(StatsEvent.OnMetricSelect(StatsMetric.Cashflow))) {
+            bars.map { it.amount } shouldBe listOf("–", "–", "–", "–", "50%", "90%")
+            bars.last().fraction shouldBe 1f
+            // (120 - 25) / 120
+            total shouldBe "79.2%"
+            average shouldBe "70%"
+            highest?.month shouldBe YearMonth.of(2026, 10)
+        }
+    }
+
+    @Test
+    fun `cashflow months open reports with income and expenses`() {
+        val navigation = Navigation()
+        val viewModel = createViewModel(navigation)
+
+        viewModel.runTest(
+            events = listOf(
+                StatsEvent.OnMetricSelect(StatsMetric.Cashflow),
+                StatsEvent.OnMonthClick(YearMonth.of(2026, 9)),
+            )
+        ) {
+            loading shouldBe false
+        }
+
+        (navigation.currentScreen as ReportScreen).initialFilter!!.transactionTypes shouldBe
+            listOf(TransactionType.INCOME, TransactionType.EXPENSE)
+    }
+
     private fun createViewModel(navigation: Navigation): StatsViewModel = StatsViewModel(
         transactionRepository = transactionRepository,
         accountRepository = accountRepository,
@@ -213,7 +259,7 @@ class StatsViewModelTest : ComposeViewModelTest() {
         currencyRepository = currencyRepository,
         exchangeRatesRepository = exchangeRatesRepository,
         baseCurrencyChanger = baseCurrencyChanger,
-        calculator = MonthlyExpensesCalculator(),
+        calculator = MonthlyTotalsCalculator(),
         formatMoney = formatMoney,
         timeProvider = timeProvider,
         dispatchers = TestDispatchersProvider,
