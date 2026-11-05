@@ -29,13 +29,16 @@ import com.ivy.navigation.Navigation
 import com.ivy.navigation.ReportFilterArgs
 import com.ivy.navigation.ReportScreen
 import com.ivy.stats.domain.BaseCurrencyChanger
-import com.ivy.stats.domain.MonthlyExpenses
-import com.ivy.stats.domain.MonthlyExpensesCalculator
+import com.ivy.stats.domain.MonthlyTotals
+import com.ivy.stats.domain.MonthlyTotalsCalculator
 import com.ivy.stats.domain.PeriodPreset
 import com.ivy.stats.domain.StatsFilter
+import com.ivy.stats.domain.StatsMetric
 import com.ivy.stats.domain.StatsPeriod
+import com.ivy.stats.domain.cashflowShare
 import com.ivy.stats.domain.end
 import com.ivy.stats.domain.start
+import com.ivy.stats.domain.valueOf
 import com.ivy.ui.ComposeViewModel
 import com.ivy.ui.FormatMoneyUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,8 +49,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.NumberFormat
 import java.time.YearMonth
 import javax.inject.Inject
+import kotlin.math.abs
 
 @Suppress("TooManyFunctions")
 @Stable
@@ -60,7 +65,7 @@ class StatsViewModel @Inject constructor(
     private val currencyRepository: CurrencyRepository,
     private val exchangeRatesRepository: ExchangeRatesRepository,
     private val baseCurrencyChanger: BaseCurrencyChanger,
-    private val calculator: MonthlyExpensesCalculator,
+    private val calculator: MonthlyTotalsCalculator,
     private val formatMoney: FormatMoneyUseCase,
     private val timeProvider: TimeProvider,
     private val dispatchers: DispatchersProvider,
@@ -70,6 +75,7 @@ class StatsViewModel @Inject constructor(
 
     private var loading by mutableStateOf(true)
     private var currency by mutableStateOf<AssetCode?>(null)
+    private var metric by mutableStateOf(StatsMetric.Expenses)
     private var preset by mutableStateOf(PeriodPreset.Default)
     private var period by mutableStateOf(
         StatsPeriod.lastMonths(currentMonth, PeriodPreset.DEFAULT_MONTHS)
@@ -104,13 +110,14 @@ class StatsViewModel @Inject constructor(
         return StatsState(
             loading = loading,
             currency = currency?.code.orEmpty(),
+            metric = metric,
             preset = preset,
             from = period.from,
             to = period.to,
             bars = bars,
             total = total,
             average = average,
-            highest = bars.filter { it.fraction > 0f }.maxByOrNull { it.fraction },
+            highest = bars.filter { it.fraction != 0f }.maxByOrNull { it.fraction },
             missingRates = missingRates,
             accounts = accountsFilter(),
             categories = categoriesFilter(),
@@ -171,6 +178,7 @@ class StatsViewModel @Inject constructor(
     override fun onEvent(event: StatsEvent) {
         when (event) {
             StatsEvent.OnBackClick -> navigation.back()
+            is StatsEvent.OnMetricSelect -> selectMetric(event.metric)
             is StatsEvent.OnPresetSelect -> selectPreset(event.preset)
             is StatsEvent.OnMonthFieldClick -> monthPicker = event.field
             is StatsEvent.OnMonthSelect -> selectMonth(event.month)
@@ -195,6 +203,12 @@ class StatsViewModel @Inject constructor(
         selectedAccounts = accounts.map { it.id.key() }.toSet()
         selectedCategories = categories.map { it.id.key() }.toSet() + NONE_KEY
         selectedTags = tags.map { it.id.key() }.toSet() + NONE_KEY
+        recalculate()
+    }
+
+    private fun selectMetric(newMetric: StatsMetric) {
+        if (newMetric == metric) return
+        metric = newMetric
         recalculate()
     }
 
@@ -234,7 +248,11 @@ class StatsViewModel @Inject constructor(
         navigation.navigateTo(
             ReportScreen(
                 initialFilter = ReportFilterArgs(
-                    transactionTypes = listOf(TransactionType.EXPENSE),
+                    transactionTypes = when (metric) {
+                        StatsMetric.Expenses -> listOf(TransactionType.EXPENSE)
+                        StatsMetric.Income -> listOf(TransactionType.INCOME)
+                        StatsMetric.Cashflow -> listOf(TransactionType.INCOME, TransactionType.EXPENSE)
+                    },
                     from = monthPeriod.start(zone),
                     to = monthPeriod.end(zone),
                     accountIds = accounts.map { it.id.value }.filter { it.toString() in selectedAccounts },
@@ -341,20 +359,51 @@ class StatsViewModel @Inject constructor(
             .toSet(),
     )
 
-    private suspend fun show(result: MonthlyExpenses, currency: AssetCode) {
-        val max = result.months.maxOfOrNull { it.amount }?.takeIf { it > 0.0 }
-        bars = result.months.map {
+    private suspend fun show(result: MonthlyTotals, currency: AssetCode) {
+        val metric = metric
+        val values = result.months.map { metric.valueOf(it) }
+        val max = values.filterNotNull().maxOfOrNull { abs(it) }?.takeIf { it > 0.0 }
+        bars = result.months.zip(values) { month, value ->
             MonthBar(
-                month = it.month,
-                amount = formatAmount(it.amount, currency, shorten = false),
-                shortAmount = formatMoney.format(it.amount, shortenAmount = true),
-                fraction = if (max == null) 0f else (it.amount / max).toFloat(),
+                month = month.month,
+                amount = format(value, metric, currency, shorten = false),
+                shortAmount = format(value, metric, currency = null, shorten = true),
+                fraction = if (max == null || value == null) 0f else (value / max).toFloat(),
             )
         }.toImmutableList()
-        val sum = result.months.sumOf { it.amount }
-        total = formatAmount(sum, currency, shorten = false)
-        average = formatAmount(sum / result.months.size.coerceAtLeast(1), currency, shorten = false)
+        if (metric == StatsMetric.Cashflow) {
+            val shares = values.filterNotNull()
+            total = format(
+                cashflowShare(
+                    income = result.months.sumOf { it.income },
+                    expenses = result.months.sumOf { it.expenses },
+                ),
+                metric,
+                currency,
+                shorten = false,
+            )
+            average = format(shares.takeIf { it.isNotEmpty() }?.average(), metric, currency, shorten = false)
+        } else {
+            val sum = values.sumOf { it ?: 0.0 }
+            total = format(sum, metric, currency, shorten = false)
+            average = format(sum / result.months.size.coerceAtLeast(1), metric, currency, shorten = false)
+        }
         missingRates = result.missingRates.map(AssetCode::code).sorted().toImmutableList()
+    }
+
+    /**
+     * @param currency appended to amounts, null for none
+     */
+    private suspend fun format(
+        value: Double?,
+        metric: StatsMetric,
+        currency: AssetCode?,
+        shorten: Boolean,
+    ): String = when {
+        value == null -> NO_VALUE
+        metric == StatsMetric.Cashflow -> percentFormat.format(value)
+        currency == null -> formatMoney.format(value, shortenAmount = shorten)
+        else -> formatAmount(value, currency, shorten)
     }
 
     private suspend fun formatAmount(amount: Double, currency: AssetCode, shorten: Boolean): String =
@@ -366,7 +415,10 @@ class StatsViewModel @Inject constructor(
 
     private fun TagId?.key(): String = this?.value?.toString() ?: NONE_KEY
 
+    private val percentFormat = NumberFormat.getPercentInstance().apply { maximumFractionDigits = 1 }
+
     companion object {
         const val NONE_KEY = "none"
+        private const val NO_VALUE = "–"
     }
 }

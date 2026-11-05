@@ -462,7 +462,7 @@
     <string name="stats_total">الإجمالي</string>
     <string name="stats_average">المتوسط الشهري</string>
     <string name="stats_highest">أعلى شهر</string>
-    <string name="stats_missing_rates">لا يوجد سعر صرف لـ %1$s، لذلك لم تُحسب هذه المصروفات.</string>
+    <string name="stats_missing_rates">لا يوجد سعر صرف لـ %1$s، لذلك لم تُحسب هذه المعاملات.</string>
     <string name="stats_no_expenses">لا توجد مصروفات في هذه الفترة</string>
     <string name="stats_change_currency">تغيير العملة</string>
     <string name="stats_currency_info">تغيير العملة هنا يغيّر العملة الأساسية للتطبيق، كما في الإعدادات.</string>
@@ -516,4 +516,9 @@
     <string name="assistant_remove_photo">إزالة الصورة</string>
     <string name="assistant_camera_unavailable">لا يوجد تطبيق كاميرا على هذا الهاتف.</string>
     <string name="assistant_photo_unreadable">تعذرت قراءة الصورة. جرّب صورة أخرى.</string>
+    <string name="stats_cashflow">التدفق النقدي</string>
+    <string name="stats_title_income">الدخل الشهري</string>
+    <string name="stats_title_cashflow">التدفق النقدي كنسبة من الدخل</string>
+    <string name="stats_no_income">لا يوجد دخل في هذه الفترة</string>
+    <string name="stats_overall">الإجمالي</string>
 </resources>

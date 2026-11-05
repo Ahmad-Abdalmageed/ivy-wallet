@@ -10,8 +10,8 @@ import org.junit.Test
 import java.time.LocalDate
 import java.time.YearMonth
 
-class MonthlyExpensesCalculatorTest {
-    private val calculator = MonthlyExpensesCalculator()
+class MonthlyTotalsCalculatorTest {
+    private val calculator = MonthlyTotalsCalculator()
     private val cash = account("Cash", "EUR")
     private val bank = account("Bank", "USD")
     private val food = category("Food")
@@ -41,7 +41,7 @@ class MonthlyExpensesCalculatorTest {
 
     private fun totals(filter: StatsFilter, currency: AssetCode = AssetCode.EUR): List<Double> =
         calculator.calculate(transactions, filter, period, currency, converter, Zone)
-            .months.map { it.amount }
+            .months.map { it.expenses }
 
     @Test
     fun `totals every month of the period in the chosen currency`() {
@@ -60,7 +60,8 @@ class MonthlyExpensesCalculatorTest {
             YearMonth.of(2026, 10),
         )
         // 10 EUR + 20 USD (10 EUR)
-        result.months.map { it.amount } shouldBe listOf(20.0, 0.0, 5.0)
+        result.months.map { it.expenses } shouldBe listOf(20.0, 0.0, 5.0)
+        result.months.map { it.income } shouldBe listOf(0.0, 100.0, 0.0)
         result.missingRates shouldBe emptySet()
     }
 
@@ -93,6 +94,22 @@ class MonthlyExpensesCalculatorTest {
     }
 
     @Test
+    fun `income is filtered like expenses`() {
+        val bonus = income(50.0, bank, LocalDate.of(2026, 10, 1))
+        val result = calculator.calculate(
+            transactions = transactions + bonus,
+            filter = everything.copy(accounts = setOf(bank.id)),
+            period = period,
+            currency = AssetCode.EUR,
+            converter = converter,
+            zone = Zone,
+        )
+
+        // 50 USD = 25 EUR; the September income is in Cash
+        result.months.map { it.income } shouldBe listOf(0.0, 0.0, 25.0)
+    }
+
+    @Test
     fun `reports currencies without exchange rate`() {
         val gold = account("Gold", "XAU")
         val result = calculator.calculate(
@@ -105,6 +122,6 @@ class MonthlyExpensesCalculatorTest {
         )
 
         result.missingRates shouldBe setOf(AssetCode.unsafe("XAU"))
-        result.months[1].amount shouldBe 0.0
+        result.months[1].expenses shouldBe 0.0
     }
 }

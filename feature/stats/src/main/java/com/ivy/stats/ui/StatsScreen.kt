@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,6 +36,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -51,6 +55,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ivy.navigation.screenScopedViewModel
 import com.ivy.stats.domain.PeriodPreset
+import com.ivy.stats.domain.StatsMetric
 import com.ivy.ui.R
 import com.ivy.ui.component.BackButton
 import com.ivy.wallet.domain.data.IvyCurrency
@@ -132,7 +137,7 @@ private fun StatsScaffold(
                 navigationIcon = {
                     BackButton(onClick = { onEvent(StatsEvent.OnBackClick) })
                 },
-                title = { Text(text = stringResource(R.string.stats_title)) },
+                title = { Text(text = stringResource(R.string.stats_menu)) },
                 actions = {
                     TextButton(onClick = { onEvent(StatsEvent.OnCurrencyClick) }) {
                         Text(text = state.currency, fontWeight = FontWeight.Bold)
@@ -169,6 +174,9 @@ private fun StatsContent(
                 Spacer(modifier = Modifier.height(4.dp))
             }
         }
+        item(key = "metric") {
+            MetricSelector(metric = state.metric, onEvent = onEvent)
+        }
         item(key = "period") {
             PeriodRow(state = state, onEvent = onEvent)
         }
@@ -181,6 +189,7 @@ private fun StatsContent(
         item(key = "chart") {
             ChartCard(
                 bars = state.bars,
+                metric = state.metric,
                 onEvent = onEvent,
             )
         }
@@ -291,7 +300,9 @@ private fun SummaryCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = stringResource(R.string.stats_total),
+                text = stringResource(
+                    if (state.metric == StatsMetric.Cashflow) R.string.stats_overall else R.string.stats_total
+                ),
                 style = MaterialTheme.typography.labelMedium,
             )
             Text(
@@ -341,6 +352,7 @@ private fun SummaryValue(
 @Composable
 private fun ChartCard(
     bars: ImmutableList<MonthBar>,
+    metric: StatsMetric,
     onEvent: (StatsEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -352,7 +364,7 @@ private fun ChartCard(
         Column(modifier = Modifier.padding(vertical = 16.dp)) {
             Text(
                 modifier = Modifier.padding(horizontal = 16.dp),
-                text = stringResource(R.string.stats_title),
+                text = stringResource(metric.titleRes()),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
             )
@@ -366,13 +378,16 @@ private fun ChartCard(
             if (bars.all { it.fraction == 0f }) {
                 Text(
                     modifier = Modifier.padding(16.dp),
-                    text = stringResource(R.string.stats_no_expenses),
+                    text = stringResource(
+                        if (metric == StatsMetric.Expenses) R.string.stats_no_expenses else R.string.stats_no_income
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.outline,
                 )
             } else {
                 BarChart(
                     bars = bars,
+                    metric = metric,
                     onEvent = onEvent,
                 )
             }
@@ -383,10 +398,12 @@ private fun ChartCard(
 @Composable
 private fun BarChart(
     bars: ImmutableList<MonthBar>,
+    metric: StatsMetric,
     onEvent: (StatsEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scrollable = bars.size > MaxFittingBars
+    val belowAxis = bars.any { it.fraction < 0f }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -397,6 +414,8 @@ private fun BarChart(
         bars.forEach { bar ->
             Bar(
                 bar = bar,
+                metric = metric,
+                belowAxis = belowAxis,
                 showYear = bar.month.monthValue == 1 || bar == bars.first(),
                 onEvent = onEvent,
                 modifier = if (scrollable) Modifier.width(BarWidth.dp) else Modifier.weight(1f),
@@ -405,39 +424,63 @@ private fun BarChart(
     }
 }
 
+/**
+ * @param belowAxis whether the chart has negative values, drawn below the axis in its lower half
+ */
+@Suppress("LongParameterList")
 @Composable
 private fun Bar(
     bar: MonthBar,
+    metric: StatsMetric,
+    belowAxis: Boolean,
     showYear: Boolean,
     onEvent: (StatsEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val locale = LocalConfiguration.current.locales[0]
-    val color = MaterialTheme.colorScheme.error
+    val color = if (metric == StatsMetric.Expenses || bar.fraction < 0f) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.secondary
+    }
+    val aboveAxisHeight = if (belowAxis) BarMaxHeight / 2 else BarMaxHeight
     Column(
         modifier = modifier.clickable { onEvent(StatsEvent.OnMonthClick(bar.month)) },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(
-            modifier = Modifier.height(ChartHeight.dp),
-            verticalArrangement = Arrangement.Bottom,
-            horizontalAlignment = Alignment.CenterHorizontally,
+        Text(
+            text = bar.shortAmount,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Clip,
+            color = MaterialTheme.colorScheme.outline,
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(aboveAxisHeight.dp),
+            contentAlignment = Alignment.BottomCenter,
         ) {
-            Text(
-                text = bar.shortAmount,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Clip,
-                color = MaterialTheme.colorScheme.outline,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Spacer(
+            if (bar.fraction >= 0f) {
+                BarBlock(
+                    height = MinBarHeight + bar.fraction * aboveAxisHeight,
+                    color = color,
+                    empty = bar.fraction == 0f,
+                )
+            }
+        }
+        if (belowAxis) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth(BarWidthFraction)
-                    .height((MinBarHeight + bar.fraction * BarMaxHeight).dp)
-                    .clip(MaterialTheme.shapes.extraSmall)
-                    .background(color.copy(alpha = if (bar.fraction == 0f) EmptyBarAlpha else 1f)),
-            )
+                    .fillMaxWidth()
+                    .height((BarMaxHeight / 2).dp),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                if (bar.fraction < 0f) {
+                    BarBlock(height = MinBarHeight - bar.fraction * BarMaxHeight / 2, color = color, empty = false)
+                }
+            }
         }
         Spacer(modifier = Modifier.height(6.dp))
         Text(
@@ -451,6 +494,46 @@ private fun Bar(
             color = MaterialTheme.colorScheme.outline,
             maxLines = 1,
         )
+    }
+}
+
+@Composable
+private fun BarBlock(
+    height: Float,
+    color: Color,
+    empty: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Spacer(
+        modifier = modifier
+            .fillMaxWidth(BarWidthFraction)
+            .height(height.dp)
+            .clip(MaterialTheme.shapes.extraSmall)
+            .background(color.copy(alpha = if (empty) EmptyBarAlpha else 1f)),
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MetricSelector(
+    metric: StatsMetric,
+    onEvent: (StatsEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SingleChoiceSegmentedButtonRow(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+    ) {
+        StatsMetric.entries.forEachIndexed { index, item ->
+            SegmentedButton(
+                selected = item == metric,
+                onClick = { onEvent(StatsEvent.OnMetricSelect(item)) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = StatsMetric.entries.size),
+            ) {
+                Text(text = stringResource(item.labelRes()), maxLines = 1)
+            }
+        }
     }
 }
 
@@ -592,6 +675,20 @@ private fun PeriodPreset.labelRes(): Int = when (this) {
 }
 
 @StringRes
+private fun StatsMetric.labelRes(): Int = when (this) {
+    StatsMetric.Expenses -> R.string.expenses
+    StatsMetric.Income -> R.string.income
+    StatsMetric.Cashflow -> R.string.stats_cashflow
+}
+
+@StringRes
+private fun StatsMetric.titleRes(): Int = when (this) {
+    StatsMetric.Expenses -> R.string.stats_title
+    StatsMetric.Income -> R.string.stats_title_income
+    StatsMetric.Cashflow -> R.string.stats_title_cashflow
+}
+
+@StringRes
 private fun StatsFilterType.labelRes(): Int = when (this) {
     StatsFilterType.Accounts -> R.string.accounts
     StatsFilterType.Categories -> R.string.categories
@@ -601,7 +698,6 @@ private fun StatsFilterType.labelRes(): Int = when (this) {
 private const val MaxFittingBars = 12
 private const val BarWidth = 44
 private const val BarWidthFraction = 0.6f
-private const val ChartHeight = 200
 private const val MinBarHeight = 2f
 private const val BarMaxHeight = 160f
 private const val EmptyBarAlpha = 0.3f
