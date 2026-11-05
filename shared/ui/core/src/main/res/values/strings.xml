@@ -513,7 +513,7 @@
     <string name="stats_total">Total</string>
     <string name="stats_average">Monthly average</string>
     <string name="stats_highest">Highest month</string>
-    <string name="stats_missing_rates">No exchange rate for %1$s, so these expenses aren\'t counted.</string>
+    <string name="stats_missing_rates">No exchange rate for %1$s, so these transactions aren\'t counted.</string>
     <string name="stats_no_expenses">No expenses in this period</string>
     <string name="stats_change_currency">Change currency</string>
     <string name="stats_currency_info">Changing the currency here changes the app\'s base currency, like in Settings.</string>
@@ -567,4 +567,9 @@
     <string name="assistant_remove_photo">Remove the photo</string>
     <string name="assistant_camera_unavailable">No camera app is available on this phone.</string>
     <string name="assistant_photo_unreadable">Couldn\'t read the photo. Try another one.</string>
+    <string name="stats_cashflow">Cashflow</string>
+    <string name="stats_title_income">Monthly income</string>
+    <string name="stats_title_cashflow">Cashflow as % of income</string>
+    <string name="stats_no_income">No income in this period</string>
+    <string name="stats_overall">Overall</string>
 </resources>

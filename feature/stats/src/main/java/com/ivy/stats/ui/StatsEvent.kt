@@ -1,10 +1,12 @@
 package com.ivy.stats.ui
 
 import com.ivy.stats.domain.PeriodPreset
+import com.ivy.stats.domain.StatsMetric
 import java.time.YearMonth
 
 sealed interface StatsEvent {
     data object OnBackClick : StatsEvent
+    data class OnMetricSelect(val metric: StatsMetric) : StatsEvent
     data class OnPresetSelect(val preset: PeriodPreset) : StatsEvent
     data class OnMonthFieldClick(val field: MonthField) : StatsEvent
     data class OnMonthSelect(val month: YearMonth) : StatsEvent
