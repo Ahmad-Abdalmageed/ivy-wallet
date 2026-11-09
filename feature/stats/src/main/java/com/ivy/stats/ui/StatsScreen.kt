@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -448,37 +449,40 @@ private fun Bar(
         modifier = modifier.clickable { onEvent(StatsEvent.OnMonthClick(bar.month)) },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = bar.shortAmount,
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Clip,
-            color = MaterialTheme.colorScheme.outline,
-        )
-        Spacer(modifier = Modifier.height(4.dp))
+        // The amount label sits at the end of its bar, so the column reserves room for it.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(aboveAxisHeight.dp),
+                .height((aboveAxisHeight + AmountLabelHeight).dp),
             contentAlignment = Alignment.BottomCenter,
         ) {
             if (bar.fraction >= 0f) {
-                BarBlock(
-                    height = MinBarHeight + bar.fraction * aboveAxisHeight,
-                    color = color,
-                    empty = bar.fraction == 0f,
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    BarAmount(text = bar.shortAmount)
+                    BarBlock(
+                        height = MinBarHeight + bar.fraction * aboveAxisHeight,
+                        color = color,
+                        empty = bar.fraction == 0f,
+                    )
+                }
             }
         }
         if (belowAxis) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height((BarMaxHeight / 2).dp),
+                    .height((BarMaxHeight / 2 + AmountLabelHeight).dp),
                 contentAlignment = Alignment.TopCenter,
             ) {
                 if (bar.fraction < 0f) {
-                    BarBlock(height = MinBarHeight - bar.fraction * BarMaxHeight / 2, color = color, empty = false)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        BarBlock(
+                            height = MinBarHeight - bar.fraction * BarMaxHeight / 2,
+                            color = color,
+                            empty = false,
+                        )
+                        BarAmount(text = bar.shortAmount)
+                    }
                 }
             }
         }
@@ -495,6 +499,23 @@ private fun Bar(
             maxLines = 1,
         )
     }
+}
+
+@Composable
+private fun BarAmount(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        modifier = modifier
+            .height(AmountLabelHeight.dp)
+            .wrapContentHeight(Alignment.CenterVertically),
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        maxLines = 1,
+        softWrap = false,
+        color = MaterialTheme.colorScheme.outline,
+    )
 }
 
 @Composable
@@ -695,9 +716,11 @@ private fun StatsFilterType.labelRes(): Int = when (this) {
     StatsFilterType.Tags -> R.string.tags
 }
 
-private const val MaxFittingBars = 12
+/** Above this many months the chart scrolls, so each bar keeps room for its amount label. */
+private const val MaxFittingBars = 6
 private const val BarWidth = 44
 private const val BarWidthFraction = 0.6f
 private const val MinBarHeight = 2f
 private const val BarMaxHeight = 160f
+private const val AmountLabelHeight = 18f
 private const val EmptyBarAlpha = 0.3f
