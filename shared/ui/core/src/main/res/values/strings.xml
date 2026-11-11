@@ -546,6 +546,10 @@
     <string name="assistant_send">Send</string>
     <string name="assistant_voice">Speak</string>
     <string name="assistant_new_chat">New chat</string>
+    <string name="assistant_history">Chat history</string>
+    <string name="assistant_history_empty">No saved chats yet. The last 10 chats are kept here.</string>
+    <string name="assistant_history_photo">Receipt photo</string>
+    <string name="assistant_delete_chat">Delete chat</string>
     <string name="assistant_settings">Assistant settings</string>
     <string name="assistant_thinking">Thinking…</string>
     <string name="assistant_undo">Undo</string>

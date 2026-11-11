@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewModelScope
+import com.ivy.base.time.TimeProvider
 import com.ivy.commands.command.Command
 import com.ivy.commands.command.CommandArgs
 import com.ivy.commands.command.CommandProcessor
@@ -37,6 +38,8 @@ class AssistantViewModel @Inject constructor(
     private val processor: CommandProcessor,
     private val receiptImages: ReceiptImages,
     private val navigation: Navigation,
+    private val history: AssistantHistory,
+    private val timeProvider: TimeProvider,
 ) : ComposeViewModel<AssistantState, AssistantEvent>() {
     private var messages by mutableStateOf<ImmutableList<ChatMessage>>(persistentListOf())
     private var input by mutableStateOf("")
@@ -45,6 +48,8 @@ class AssistantViewModel @Inject constructor(
     private var hasApiKey by mutableStateOf<Boolean?>(null)
     private var settingsUi by mutableStateOf<AssistantSettingsUi?>(null)
     private var listenOnStart by mutableStateOf(false)
+    private var historyUi by mutableStateOf<ImmutableList<ConversationSummary>?>(null)
+    private var conversationId: String? = null
     private var listenRequested = false
     private var started = false
     private var nextId = 0L
@@ -77,6 +82,7 @@ class AssistantViewModel @Inject constructor(
             hasApiKey = hasApiKey,
             settings = settingsUi,
             listenOnStart = listenOnStart,
+            history = historyUi,
         )
     }
 
@@ -94,6 +100,10 @@ class AssistantViewModel @Inject constructor(
             is AssistantEvent.OnExampleClick -> send(event.text)
             is AssistantEvent.OnUndoClick -> undo(event.message)
             AssistantEvent.OnNewChatClick -> newChat()
+            AssistantEvent.OnHistoryClick -> viewModelScope.launch { showHistory() }
+            AssistantEvent.OnHistoryDismiss -> historyUi = null
+            is AssistantEvent.OnConversationClick -> openConversation(event.id)
+            is AssistantEvent.OnConversationDelete -> deleteConversation(event.id)
             AssistantEvent.OnSettingsClick -> viewModelScope.launch { openSettings() }
             AssistantEvent.OnSettingsDismiss -> settingsUi = null
             is AssistantEvent.OnApiKeyChange -> settingsUi = settingsUi?.copy(apiKey = event.apiKey)
@@ -139,15 +149,17 @@ class AssistantViewModel @Inject constructor(
         if ((message.isEmpty() && image == null) || sending) return
         input = ""
         attachment = null
+        val userMessageId = nextId
         add { ChatMessage.User(it, message, image) }
         sending = true
         viewModelScope.launch {
-            reply(message, image)
+            reply(message, image, userMessageId)
             sending = false
+            saveConversation()
         }
     }
 
-    private suspend fun reply(message: String, image: String?) {
+    private suspend fun reply(message: String, image: String?, userMessageId: Long) {
         val config = settings.config()
         if (config == null) {
             hasApiKey = false
@@ -159,6 +171,7 @@ class AssistantViewModel @Inject constructor(
             add { ChatMessage.Notice(it, NoticeKind.PhotoUnreadable) }
             return
         }
+        jpeg?.let { history.savePhoto(it) }?.let { saved -> replaceImage(userMessageId, saved) }
         agent.send(message, jpeg, config) { action -> show(action) }.fold(
             ifLeft = { error -> add { ChatMessage.Error(it, error) } },
             ifRight = { reply -> add { ChatMessage.Assistant(it, reply.ifBlank { DONE }) } },
@@ -184,6 +197,7 @@ class AssistantViewModel @Inject constructor(
                 ifRight = {
                     markUndone(added.transaction)
                     agent.noteUndo(added.transaction)
+                    saveConversation()
                 },
             )
         }
@@ -199,6 +213,61 @@ class AssistantViewModel @Inject constructor(
         if (sending) return
         agent.reset()
         messages = persistentListOf()
+        conversationId = null
+    }
+
+    /** Shows the photo's saved copy, which outlives the camera's cache and the gallery permission. */
+    private fun replaceImage(messageId: Long, imageUri: String) {
+        messages = messages.map {
+            if (it is ChatMessage.User && it.id == messageId) it.copy(imageUri = imageUri) else it
+        }.toImmutableList()
+    }
+
+    private suspend fun saveConversation() {
+        if (messages.isEmpty()) return
+        val id = conversationId ?: UUID.randomUUID().toString().also { conversationId = it }
+        history.save(
+            Conversation(
+                id = id,
+                updatedAt = timeProvider.utcNow().toEpochMilli(),
+                messages = messages,
+                agent = agent.snapshot(),
+            )
+        )
+    }
+
+    private suspend fun showHistory() {
+        historyUi = history.conversations().map {
+            ConversationSummary(
+                id = it.id,
+                title = it.title,
+                updatedAt = it.updatedAt,
+                current = it.id == conversationId,
+            )
+        }.toImmutableList()
+    }
+
+    private fun openConversation(id: String) {
+        if (sending) return
+        viewModelScope.launch {
+            val conversation = history.conversations().firstOrNull { it.id == id } ?: return@launch
+            agent.restore(conversation.agent)
+            messages = conversation.messages.toImmutableList()
+            nextId = (conversation.messages.maxOfOrNull { it.id } ?: -1L) + 1
+            conversationId = conversation.id
+            input = ""
+            attachment = null
+            historyUi = null
+        }
+    }
+
+    private fun deleteConversation(id: String) {
+        if (sending) return
+        viewModelScope.launch {
+            history.delete(id)
+            if (id == conversationId) newChat()
+            showHistory()
+        }
     }
 
     private fun add(message: (id: Long) -> ChatMessage) {
