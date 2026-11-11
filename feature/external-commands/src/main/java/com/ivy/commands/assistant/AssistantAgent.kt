@@ -40,6 +40,14 @@ sealed interface AssistantAction {
 }
 
 /**
+ * What the [AssistantAgent] remembers of a conversation, to save it and continue it later.
+ */
+data class AgentSnapshot(
+    val contents: List<JsonObject>,
+    val notes: List<String>,
+)
+
+/**
  * A conversation with Gemini that runs the [Command]s it asks for, through the same
  * [CommandProcessor] as the external commands, until it replies with text.
  * The conversation lives as long as the agent.
@@ -59,6 +67,15 @@ class AssistantAgent @Inject constructor(
     fun reset() {
         contents.clear()
         notes.clear()
+    }
+
+    fun snapshot(): AgentSnapshot = AgentSnapshot(contents = contents.toList(), notes = notes.toList())
+
+    /** Continues a saved conversation instead of the current one. */
+    fun restore(snapshot: AgentSnapshot) {
+        reset()
+        contents += snapshot.contents
+        notes += snapshot.notes
     }
 
     /**

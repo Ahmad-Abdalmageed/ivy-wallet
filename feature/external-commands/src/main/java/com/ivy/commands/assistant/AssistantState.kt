@@ -15,6 +15,18 @@ data class AssistantState(
     val hasApiKey: Boolean?,
     val settings: AssistantSettingsUi?,
     val listenOnStart: Boolean,
+    /** The saved conversations, newest first; null while the history isn't shown. */
+    val history: ImmutableList<ConversationSummary>?,
+)
+
+@Immutable
+data class ConversationSummary(
+    val id: String,
+    /** Empty when the conversation started with a photo only. */
+    val title: String,
+    /** Epoch millis */
+    val updatedAt: Long,
+    val current: Boolean,
 )
 
 @Immutable

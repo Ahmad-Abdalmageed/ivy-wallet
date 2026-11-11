@@ -495,6 +495,10 @@
     <string name="assistant_send">إرسال</string>
     <string name="assistant_voice">تحدث</string>
     <string name="assistant_new_chat">محادثة جديدة</string>
+    <string name="assistant_history">سجل المحادثات</string>
+    <string name="assistant_history_empty">لا توجد محادثات محفوظة بعد. تُحفظ هنا آخر 10 محادثات.</string>
+    <string name="assistant_history_photo">صورة إيصال</string>
+    <string name="assistant_delete_chat">حذف المحادثة</string>
     <string name="assistant_settings">إعدادات المساعد</string>
     <string name="assistant_thinking">يفكر…</string>
     <string name="assistant_undo">تراجع</string>

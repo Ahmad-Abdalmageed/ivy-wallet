@@ -182,4 +182,18 @@ class AssistantAgentTest {
 
         requests[1].size shouldBe 1
     }
+
+    @Test
+    fun `continues a restored conversation`() = runTest {
+        replies(model("""{"text": "Hi"}"""), model("""{"text": "Hi again"}"""))
+
+        agent.send("hello", null, config) {}
+        val snapshot = agent.snapshot()
+        agent.reset()
+        agent.restore(snapshot)
+        agent.send("hello again", null, config) {}
+
+        snapshot.contents.size shouldBe 2
+        requests[1].size shouldBe 3
+    }
 }

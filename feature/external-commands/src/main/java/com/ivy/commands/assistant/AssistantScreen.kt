@@ -26,12 +26,16 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
@@ -71,6 +75,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.ivy.commands.command.CommandGroup
@@ -79,6 +84,9 @@ import com.ivy.navigation.AssistantScreen
 import com.ivy.navigation.screenScopedViewModel
 import com.ivy.ui.R
 import com.ivy.ui.component.BackButton
+import kotlinx.collections.immutable.ImmutableList
+import java.text.DateFormat
+import java.util.Date
 
 @Composable
 fun AssistantScreen(screen: AssistantScreen) {
@@ -154,6 +162,9 @@ private fun AssistantUi(
         state.settings?.let { settings ->
             SettingsDialog(settings = settings, onEvent = onEvent)
         }
+        state.history?.let { history ->
+            HistoryDialog(history = history, onEvent = onEvent)
+        }
     }
 }
 
@@ -177,6 +188,12 @@ private fun AssistantScaffold(
                 },
                 title = { Text(text = stringResource(R.string.assistant_title)) },
                 actions = {
+                    IconButton(onClick = { onEvent(AssistantEvent.OnHistoryClick) }, enabled = !state.sending) {
+                        Icon(
+                            imageVector = Icons.Filled.History,
+                            contentDescription = stringResource(R.string.assistant_history),
+                        )
+                    }
                     IconButton(onClick = { onEvent(AssistantEvent.OnNewChatClick) }) {
                         Icon(
                             imageVector = Icons.Filled.Refresh,
@@ -609,6 +626,80 @@ private fun SettingsDialog(
             }
         },
     )
+}
+
+@Composable
+private fun HistoryDialog(
+    history: ImmutableList<ConversationSummary>,
+    onEvent: (AssistantEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AlertDialog(
+        modifier = modifier,
+        onDismissRequest = { onEvent(AssistantEvent.OnHistoryDismiss) },
+        confirmButton = {
+            TextButton(onClick = { onEvent(AssistantEvent.OnHistoryDismiss) }) {
+                Text(text = stringResource(R.string.assistant_cancel))
+            }
+        },
+        title = { Text(text = stringResource(R.string.assistant_history)) },
+        text = {
+            if (history.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.assistant_history_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            } else {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    history.forEach { conversation ->
+                        HistoryItem(conversation = conversation, onEvent = onEvent)
+                    }
+                }
+            }
+        },
+    )
+}
+
+@Composable
+private fun HistoryItem(
+    conversation: ConversationSummary,
+    onEvent: (AssistantEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(
+            modifier = Modifier.weight(1f),
+            onClick = { onEvent(AssistantEvent.OnConversationClick(conversation.id)) },
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = conversation.title.ifBlank { stringResource(R.string.assistant_history_photo) },
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (conversation.current) FontWeight.Bold else FontWeight.Normal,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = remember(conversation.updatedAt) {
+                        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+                            .format(Date(conversation.updatedAt))
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                )
+            }
+        }
+        IconButton(onClick = { onEvent(AssistantEvent.OnConversationDelete(conversation.id)) }) {
+            Icon(
+                imageVector = Icons.Filled.Delete,
+                contentDescription = stringResource(R.string.assistant_delete_chat),
+            )
+        }
+    }
 }
 
 @StringRes
