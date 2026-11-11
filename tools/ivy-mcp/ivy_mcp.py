@@ -22,7 +22,7 @@ import subprocess
 import sys
 
 SERVER_NAME = "ivy-wallet"
-SERVER_VERSION = "1.0.0"
+SERVER_VERSION = "1.1.0"
 DEFAULT_PROTOCOL_VERSION = "2025-06-18"
 ADB_TIMEOUT_SECONDS = 30
 
@@ -105,7 +105,7 @@ TOOLS = [
     },
 ]
 
-_TOOL_NAMES = {tool["name"] for tool in TOOLS}
+_TOOL_NAME = re.compile(r"^[a-z][a-z_]*$")
 _RESULT = re.compile(r"Result: Bundle\[\{json=(.*)\}\]\s*$", re.DOTALL)
 
 
@@ -149,6 +149,29 @@ def call_ivy(method, arguments, env=None):
         return {"ok": False, "error": "Unexpected response: " + match.group(1)}
 
 
+def list_tools(env=None):
+    """The app's commands as MCP tools, from its help command.
+
+    Falls back to the built-in TOOLS (transactions only) when the phone can't be reached or runs an
+    older Ivy Wallet.
+    """
+    response = call_ivy("help", {}, env)
+    commands = response.get("result") if response.get("ok") else None
+    if not isinstance(commands, list):
+        return TOOLS
+    tools = []
+    for command in commands:
+        name = command.get("command") if isinstance(command, dict) else None
+        if not name or name == "help" or "parameters" not in command:
+            continue
+        tools.append({
+            "name": name,
+            "description": command.get("description", ""),
+            "inputSchema": command.get("parameters") or {"type": "object", "properties": {}},
+        })
+    return tools or TOOLS
+
+
 def _response(request_id, result=None, error=None):
     message = {"jsonrpc": "2.0", "id": request_id}
     if error is not None:
@@ -170,16 +193,18 @@ def handle(message, env=None):
             "protocolVersion": params.get("protocolVersion") or DEFAULT_PROTOCOL_VERSION,
             "capabilities": {"tools": {}},
             "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
-            "instructions": "Ivy Wallet is a money manager on the user's phone. Look up account, "
-                            "category and tag names with the list tools before adding transactions.",
+            "instructions": "Ivy Wallet is a money manager on the user's phone. The tools cover "
+                            "everything the app does: transactions, accounts, categories, tags, budgets, "
+                            "planned payments, loans and settings. Look up names with the list tools "
+                            "before using them, and confirm with the user before deleting anything.",
         })
     if method == "ping":
         return _response(request_id, {})
     if method == "tools/list":
-        return _response(request_id, {"tools": TOOLS})
+        return _response(request_id, {"tools": list_tools(env)})
     if method == "tools/call":
         name = params.get("name")
-        if name not in _TOOL_NAMES:
+        if not isinstance(name, str) or not _TOOL_NAME.match(name) or name == "help":
             return _response(request_id, error={"code": -32602, "message": "Unknown tool: {}".format(name)})
         response = call_ivy(name, params.get("arguments") or {}, env)
         ok = bool(response.get("ok"))

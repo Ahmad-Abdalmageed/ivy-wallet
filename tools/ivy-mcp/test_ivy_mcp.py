@@ -86,6 +86,35 @@ class IvyMcpTest(unittest.TestCase):
         self.assertIn("Unknown account", responses[2]["result"]["content"][0]["text"])
         self.assertEqual(responses[3]["error"]["code"], -32601)
 
+    def test_tools_from_the_app(self):
+        help_result = [
+            {"command": "help", "description": "Lists the commands.", "arguments": {},
+             "parameters": {"type": "object", "properties": {}}},
+            {"command": "add_budget", "description": "Adds a monthly budget.",
+             "arguments": {"name": "required"},
+             "parameters": {"type": "object", "properties": {"name": {"type": "string"}},
+                            "required": ["name"]}},
+        ]
+        self.fake_adb("Result: Bundle[{json=" + json.dumps({"ok": True, "result": help_result}) + "}]")
+
+        tools = ivy_mcp.list_tools(self.env)
+
+        self.assertEqual([tool["name"] for tool in tools], ["add_budget"])
+        self.assertEqual(tools[0]["inputSchema"]["required"], ["name"])
+        self.assertIn("--method help", self.adb_command())
+
+    def test_tools_fallback_for_older_apps(self):
+        self.fake_adb('Result: Bundle[{json={"ok":true,"result":[{"command":"add_transaction"}]}}]')
+
+        self.assertEqual(ivy_mcp.list_tools(self.env), ivy_mcp.TOOLS)
+
+    def test_rejects_invalid_tool_names(self):
+        response = ivy_mcp.handle(
+            {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "rm -rf"}}, self.env
+        )
+
+        self.assertEqual(response["error"]["code"], -32602)
+
 
 if __name__ == "__main__":
     unittest.main()
