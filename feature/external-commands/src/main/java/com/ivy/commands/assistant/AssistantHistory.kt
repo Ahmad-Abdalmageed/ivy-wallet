@@ -30,6 +30,7 @@ import javax.inject.Singleton
 /**
  * A saved assistant conversation: what the chat shows and what Gemini needs to continue it.
  */
+@Suppress("DataClassTypedIDs")
 data class Conversation(
     val id: ConversationId,
     val updatedAt: Long,

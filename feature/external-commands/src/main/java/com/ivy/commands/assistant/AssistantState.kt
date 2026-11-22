@@ -22,6 +22,7 @@ data class AssistantState(
 @JvmInline
 value class ConversationId(val value: String)
 
+@Suppress("DataClassTypedIDs")
 @Immutable
 data class ConversationSummary(
     val id: ConversationId,
