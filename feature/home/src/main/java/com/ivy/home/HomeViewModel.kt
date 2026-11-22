@@ -52,7 +52,6 @@ import com.ivy.wallet.domain.action.viewmodel.home.UpcomingAct
 import com.ivy.wallet.domain.action.viewmodel.home.UpdateAccCacheAct
 import com.ivy.wallet.domain.action.viewmodel.home.UpdateCategoriesCacheAct
 import com.ivy.wallet.domain.action.wallet.CalcIncomeExpenseAct
-import com.ivy.wallet.domain.action.wallet.CalcAccBalancesInOwnCurrencyAct
 import com.ivy.wallet.domain.action.wallet.CalcWalletBalanceAct
 import com.ivy.wallet.domain.deprecated.logic.PlannedPaymentsLogic
 import com.ivy.wallet.domain.pure.data.ClosedTimeRange

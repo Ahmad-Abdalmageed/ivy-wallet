@@ -4,7 +4,7 @@ import io.kotest.matchers.shouldBe
 import org.junit.Test
 import java.math.BigDecimal
 
-class BalanceByCurrencyTest {
+class CurrencyBalanceTest {
     @Test
     fun `sums each currency on its own without exchanging`() {
         balancesByCurrency(
