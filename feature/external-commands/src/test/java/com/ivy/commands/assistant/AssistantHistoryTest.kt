@@ -26,7 +26,7 @@ class AssistantHistoryTest {
     private val transactionId = TransactionId(UUID.fromString("5e6f3b52-7c0d-4f7e-9a3b-0f1e2d3c4b5a"))
 
     private fun conversation(id: String, updatedAt: Long, imageUri: String? = null) = Conversation(
-        id = id,
+        id = ConversationId(id),
         updatedAt = updatedAt,
         messages = listOf(
             ChatMessage.User(0, "lunch 25 $id", imageUri),
@@ -60,7 +60,7 @@ class AssistantHistoryTest {
         history.save(conversation("a", updatedAt = 1))
 
         val saved = history.conversations().single()
-        saved.id shouldBe "a"
+        saved.id shouldBe ConversationId("a")
         saved.title shouldBe "lunch 25 a"
         saved.messages shouldBe conversation("a", 1).messages
         saved.agent.notes shouldBe listOf("a note")
@@ -72,7 +72,7 @@ class AssistantHistoryTest {
     fun `keeps only the last 10 conversations, newest first`() = runTest {
         (1..12).forEach { history.save(conversation("c$it", updatedAt = it.toLong())) }
 
-        history.conversations().map { it.id } shouldBe (12 downTo 3).map { "c$it" }
+        history.conversations().map { it.id.value } shouldBe (12 downTo 3).map { "c$it" }
     }
 
     @Test
@@ -81,7 +81,7 @@ class AssistantHistoryTest {
         history.save(conversation("b", updatedAt = 2))
         history.save(conversation("a", updatedAt = 3))
 
-        history.conversations().map { it.id } shouldBe listOf("a", "b")
+        history.conversations().map { it.id.value } shouldBe listOf("a", "b")
     }
 
     @Test
@@ -90,7 +90,7 @@ class AssistantHistoryTest {
         history.save(conversation("a", updatedAt = 1, imageUri = photo))
         File(java.net.URI(photo)).exists() shouldBe true
 
-        history.delete("a")
+        history.delete(ConversationId("a"))
 
         history.conversations() shouldBe emptyList()
         File(java.net.URI(photo)).exists() shouldBe false

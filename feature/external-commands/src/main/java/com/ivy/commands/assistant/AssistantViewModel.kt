@@ -49,7 +49,7 @@ class AssistantViewModel @Inject constructor(
     private var settingsUi by mutableStateOf<AssistantSettingsUi?>(null)
     private var listenOnStart by mutableStateOf(false)
     private var historyUi by mutableStateOf<ImmutableList<ConversationSummary>?>(null)
-    private var conversationId: String? = null
+    private var conversationId: ConversationId? = null
     private var listenRequested = false
     private var started = false
     private var nextId = 0L
@@ -99,6 +99,12 @@ class AssistantViewModel @Inject constructor(
             AssistantEvent.OnListenOnStartHandled -> listenOnStart = false
             is AssistantEvent.OnExampleClick -> send(event.text)
             is AssistantEvent.OnUndoClick -> undo(event.message)
+            else -> onHistoryOrSettingsEvent(event)
+        }
+    }
+
+    private fun onHistoryOrSettingsEvent(event: AssistantEvent) {
+        when (event) {
             AssistantEvent.OnNewChatClick -> newChat()
             AssistantEvent.OnHistoryClick -> viewModelScope.launch { showHistory() }
             AssistantEvent.OnHistoryDismiss -> historyUi = null
@@ -110,6 +116,7 @@ class AssistantViewModel @Inject constructor(
             is AssistantEvent.OnModelChange -> settingsUi = settingsUi?.copy(model = event.model)
             AssistantEvent.OnSettingsSave -> saveSettings()
             AssistantEvent.OnApiKeyRemove -> removeApiKey()
+            else -> Unit
         }
     }
 
@@ -225,7 +232,7 @@ class AssistantViewModel @Inject constructor(
 
     private suspend fun saveConversation() {
         if (messages.isEmpty()) return
-        val id = conversationId ?: UUID.randomUUID().toString().also { conversationId = it }
+        val id = conversationId ?: ConversationId(UUID.randomUUID().toString()).also { conversationId = it }
         history.save(
             Conversation(
                 id = id,
@@ -247,7 +254,7 @@ class AssistantViewModel @Inject constructor(
         }.toImmutableList()
     }
 
-    private fun openConversation(id: String) {
+    private fun openConversation(id: ConversationId) {
         if (sending) return
         viewModelScope.launch {
             val conversation = history.conversations().firstOrNull { it.id == id } ?: return@launch
@@ -261,7 +268,7 @@ class AssistantViewModel @Inject constructor(
         }
     }
 
-    private fun deleteConversation(id: String) {
+    private fun deleteConversation(id: ConversationId) {
         if (sending) return
         viewModelScope.launch {
             history.delete(id)
