@@ -52,6 +52,7 @@ import com.ivy.wallet.ui.theme.modal.ChoosePeriodModal
 import com.ivy.wallet.ui.theme.modal.ChoosePeriodModalData
 import com.ivy.wallet.ui.theme.wallet.PeriodSelector
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 
 val FAB_BUTTON_SIZE = 56.dp
 
@@ -285,6 +286,7 @@ private fun Preview(theme: Theme = Theme.LIGHT) {
                 currentBalance = 9326.55,
                 balanceAfterPlannedPayments = 8426.0,
                 plannedPaymentsAmount = -900.55,
+                balanceByCurrency = persistentListOf(),
             )
         )
     }
