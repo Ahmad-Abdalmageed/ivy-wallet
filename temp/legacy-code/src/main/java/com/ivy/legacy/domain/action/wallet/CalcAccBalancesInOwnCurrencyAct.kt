@@ -1,4 +1,4 @@
-package com.ivy.home
+package com.ivy.legacy.domain.action.wallet
 
 import com.ivy.data.model.Account
 import com.ivy.data.model.AccountId

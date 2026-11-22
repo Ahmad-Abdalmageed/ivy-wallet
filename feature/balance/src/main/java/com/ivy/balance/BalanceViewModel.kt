@@ -13,11 +13,17 @@ import com.ivy.base.time.TimeConverter
 import com.ivy.base.time.TimeProvider
 import com.ivy.ui.ComposeViewModel
 import com.ivy.legacy.data.model.TimePeriod
+import com.ivy.legacy.domain.action.wallet.CalcAccBalancesInOwnCurrencyAct
+import com.ivy.legacy.domain.action.wallet.CurrencyBalance
+import com.ivy.legacy.domain.action.wallet.balancesByCurrency
 import com.ivy.legacy.utils.ioThread
 import com.ivy.wallet.domain.action.settings.BaseCurrencyAct
 import com.ivy.wallet.domain.action.wallet.CalcWalletBalanceAct
 import com.ivy.wallet.domain.deprecated.logic.PlannedPaymentsLogic
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -28,6 +34,7 @@ class BalanceViewModel @Inject constructor(
     private val ivyContext: com.ivy.legacy.IvyWalletCtx,
     private val baseCurrencyAct: BaseCurrencyAct,
     private val calcWalletBalanceAct: CalcWalletBalanceAct,
+    private val calcAccBalancesInOwnCurrencyAct: CalcAccBalancesInOwnCurrencyAct,
     private val timeProvider: TimeProvider,
     private val timeConverter: TimeConverter,
 ) : ComposeViewModel<BalanceState, BalanceEvent>() {
@@ -38,6 +45,7 @@ class BalanceViewModel @Inject constructor(
     private var plannedPaymentsAmount by mutableDoubleStateOf(0.0)
     private var balanceAfterPlannedPayments by mutableDoubleStateOf(0.0)
     private var numberOfMonthsAhead by mutableIntStateOf(1)
+    private var balanceByCurrency by mutableStateOf<ImmutableList<CurrencyBalance>>(persistentListOf())
 
     @Composable
     override fun uiState(): BalanceState {
@@ -50,7 +58,8 @@ class BalanceViewModel @Inject constructor(
             balanceAfterPlannedPayments = balanceAfterPlannedPayments,
             currentBalance = currentBalance,
             baseCurrencyCode = baseCurrencyCode,
-            plannedPaymentsAmount = plannedPaymentsAmount
+            plannedPaymentsAmount = plannedPaymentsAmount,
+            balanceByCurrency = balanceByCurrency,
         )
     }
 
@@ -72,6 +81,12 @@ class BalanceViewModel @Inject constructor(
             currentBalance = calcWalletBalanceAct(
                 CalcWalletBalanceAct.Input(baseCurrencyCode)
             ).toDouble()
+            balanceByCurrency = balancesByCurrency(
+                accountBalances = calcAccBalancesInOwnCurrencyAct(
+                    CalcAccBalancesInOwnCurrencyAct.Input(baseCurrency = baseCurrencyCode)
+                ),
+                selectedCurrency = baseCurrencyCode,
+            ).toImmutableList()
 
             plannedPaymentsAmount = ioThread {
                 plannedPaymentsLogic.plannedPaymentsAmountFor(

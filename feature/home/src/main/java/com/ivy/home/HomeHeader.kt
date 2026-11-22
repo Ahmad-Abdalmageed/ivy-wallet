@@ -44,6 +44,7 @@ import com.ivy.design.l0_system.UI
 import com.ivy.design.l0_system.style
 import com.ivy.design.utils.thenIf
 import com.ivy.legacy.data.model.TimePeriod
+import com.ivy.legacy.domain.action.wallet.CurrencyBalance
 import com.ivy.legacy.ivyWalletCtx
 import com.ivy.legacy.ui.component.transaction.TransactionsDividerLine
 import com.ivy.legacy.utils.clickableNoIndication

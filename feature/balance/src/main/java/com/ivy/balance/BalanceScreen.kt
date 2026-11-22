@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -35,6 +36,7 @@ import com.ivy.design.l0_system.style
 import com.ivy.legacy.IvyWalletPreview
 import com.ivy.legacy.data.model.Month
 import com.ivy.legacy.data.model.TimePeriod
+import com.ivy.legacy.domain.action.wallet.CurrencyBalance
 import com.ivy.legacy.utils.format
 import com.ivy.navigation.BalanceScreen
 import com.ivy.navigation.navigation
@@ -49,6 +51,8 @@ import com.ivy.wallet.ui.theme.components.IvyDividerLine
 import com.ivy.wallet.ui.theme.modal.ChoosePeriodModal
 import com.ivy.wallet.ui.theme.modal.ChoosePeriodModalData
 import com.ivy.wallet.ui.theme.wallet.PeriodSelector
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 
 val FAB_BUTTON_SIZE = 56.dp
 
@@ -93,7 +97,8 @@ private fun BoxWithConstraintsScope.UI(
 
         CurrentBalance(
             currency = state.baseCurrencyCode,
-            currentBalance = state.currentBalance
+            currentBalance = state.currentBalance,
+            balanceByCurrency = state.balanceByCurrency,
         )
 
         Spacer(Modifier.height(32.dp))
@@ -106,6 +111,7 @@ private fun BoxWithConstraintsScope.UI(
         Spacer(Modifier.height(40.dp))
 
         BalanceAfterPlannedPayments(
+            converted = state.balanceByCurrency.size > 1,
             currency = state.baseCurrencyCode,
             currentBalance = state.currentBalance,
             plannedPaymentsAmount = state.plannedPaymentsAmount,
@@ -132,7 +138,8 @@ private fun BoxWithConstraintsScope.UI(
 @Composable
 private fun ColumnScope.CurrentBalance(
     currency: String,
-    currentBalance: Double
+    currentBalance: Double,
+    balanceByCurrency: ImmutableList<CurrencyBalance>,
 ) {
     Text(
         modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -145,15 +152,41 @@ private fun ColumnScope.CurrentBalance(
 
     Spacer(Modifier.height(4.dp))
 
-    BalanceRow(
-        modifier = Modifier.align(Alignment.CenterHorizontally),
-        currency = currency,
-        balance = currentBalance
-    )
+    if (balanceByCurrency.size <= 1) {
+        BalanceRow(
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+            currency = currency,
+            balance = currentBalance
+        )
+    } else {
+        // Each currency on its own, so amounts in different currencies aren't added together.
+        balanceByCurrency.forEach { balance ->
+            BalanceRow(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .testTag("balance_${balance.currency}"),
+                currency = balance.currency,
+                balance = balance.amount.toDouble(),
+                balanceFontSize = 36.sp,
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+            text = stringResource(R.string.balance_converted_total, "$currency ${currentBalance.format(2)}"),
+            style = UI.typo.nC.style(
+                color = Gray,
+                fontWeight = FontWeight.Normal
+            )
+        )
+    }
 }
 
 @Composable
 private fun ColumnScope.BalanceAfterPlannedPayments(
+    converted: Boolean,
     currency: String,
     currentBalance: Double,
     plannedPaymentsAmount: Double,
@@ -162,7 +195,11 @@ private fun ColumnScope.BalanceAfterPlannedPayments(
     Text(
         modifier = Modifier
             .padding(horizontal = 32.dp),
-        text = stringResource(R.string.balance_after_payments),
+        text = if (converted) {
+            stringResource(R.string.balance_after_payments_converted, currency)
+        } else {
+            stringResource(R.string.balance_after_payments)
+        },
         style = UI.typo.b2.style(
             color = Orange,
             fontWeight = FontWeight.ExtraBold
@@ -249,6 +286,7 @@ private fun Preview(theme: Theme = Theme.LIGHT) {
                 currentBalance = 9326.55,
                 balanceAfterPlannedPayments = 8426.0,
                 plannedPaymentsAmount = -900.55,
+                balanceByCurrency = persistentListOf(),
             )
         )
     }

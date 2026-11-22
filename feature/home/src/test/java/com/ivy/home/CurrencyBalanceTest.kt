@@ -1,5 +1,7 @@
 package com.ivy.home
 
+import com.ivy.legacy.domain.action.wallet.CurrencyBalance
+import com.ivy.legacy.domain.action.wallet.balancesByCurrency
 import io.kotest.matchers.shouldBe
 import org.junit.Test
 import java.math.BigDecimal

@@ -12,6 +12,8 @@
     <string name="unlock">Unlock</string>
     <string name="current_balance">CURRENT BALANCE</string>
     <string name="balance_after_payments">BALANCE AFTER PLANNED PAYMENTS</string>
+    <string name="balance_after_payments_converted">BALANCE AFTER PLANNED PAYMENTS (CONVERTED TO %1$s)</string>
+    <string name="balance_converted_total">≈ %1$s total (converted)</string>
     <string name="connect">Connect</string>
     <string name="sync_transactions">Sync transactions</string>
     <string name="syncing_transactions">Syncing transactions…</string>
