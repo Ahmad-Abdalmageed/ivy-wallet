@@ -1,4 +1,4 @@
-package com.ivy.home
+package com.ivy.legacy.domain.action.wallet
 
 import androidx.compose.runtime.Immutable
 import java.math.BigDecimal
