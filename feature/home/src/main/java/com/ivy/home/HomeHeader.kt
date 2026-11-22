@@ -1,6 +1,7 @@
 package com.ivy.home
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -15,14 +16,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
@@ -58,10 +64,13 @@ import com.ivy.wallet.ui.theme.Gray
 import com.ivy.wallet.ui.theme.Green
 import com.ivy.wallet.ui.theme.White
 import com.ivy.wallet.ui.theme.components.BalanceRow
+import com.ivy.wallet.ui.theme.components.BalanceRowMedium
 import com.ivy.wallet.ui.theme.components.BalanceRowMini
 import com.ivy.wallet.ui.theme.components.IvyIcon
 import com.ivy.wallet.ui.theme.components.IvyOutlinedButton
 import com.ivy.wallet.ui.theme.wallet.AmountCurrencyB1
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import kotlin.math.absoluteValue
 
 @ExperimentalAnimationApi
@@ -225,7 +234,8 @@ fun CashFlowInfo(
     onBalanceClick: () -> Unit,
     percentExpanded: Float,
     onHiddenBalanceClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    otherBalances: ImmutableList<CurrencyBalance> = persistentListOf(),
 ) {
     Column(
         modifier = modifier
@@ -237,21 +247,14 @@ fun CashFlowInfo(
                 },
             ),
     ) {
-        BalanceRow(
-            modifier = Modifier
-                .padding(horizontal = 20.dp)
-                .clickableNoIndication(rememberInteractionSource()) {
-                    if (hideBalance) {
-                        onHiddenBalanceClick()
-                    } else {
-                        onBalanceClick()
-                    }
-                }
-                .testTag("home_balance"),
+        BalanceByCurrency(
+            modifier = Modifier.padding(horizontal = 20.dp),
             currency = currency,
             balance = balance,
-            shortenBigNumbers = true,
-            hiddenMode = hideBalance
+            otherBalances = otherBalances,
+            hideBalance = hideBalance,
+            onBalanceClick = onBalanceClick,
+            onHiddenBalanceClick = onHiddenBalanceClick,
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -279,6 +282,112 @@ fun CashFlowInfo(
         } else {
             Spacer(Modifier.height(16.dp))
         }
+    }
+}
+
+/**
+ * The balance in the selected [currency], with the [otherBalances] (each in its own currency,
+ * not exchanged) folded behind a "+N" toggle.
+ */
+@Composable
+private fun BalanceByCurrency(
+    currency: String,
+    balance: Double,
+    otherBalances: ImmutableList<CurrencyBalance>,
+    hideBalance: Boolean,
+    onBalanceClick: () -> Unit,
+    onHiddenBalanceClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var othersExpanded by rememberSaveable { mutableStateOf(false) }
+    val onClick = {
+        if (hideBalance) {
+            onHiddenBalanceClick()
+        } else {
+            onBalanceClick()
+        }
+    }
+
+    Column(modifier = modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            BalanceRow(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .clickableNoIndication(rememberInteractionSource()) { onClick() }
+                    .testTag("home_balance"),
+                currency = currency,
+                balance = balance,
+                shortenBigNumbers = true,
+                hiddenMode = hideBalance
+            )
+
+            if (otherBalances.isNotEmpty()) {
+                Spacer(Modifier.width(12.dp))
+
+                OtherCurrenciesToggle(
+                    count = otherBalances.size,
+                    expanded = othersExpanded,
+                    onClick = { othersExpanded = !othersExpanded },
+                )
+            }
+        }
+
+        AnimatedVisibility(visible = othersExpanded && otherBalances.isNotEmpty()) {
+            Column {
+                otherBalances.forEach { other ->
+                    Spacer(Modifier.height(4.dp))
+
+                    BalanceRowMedium(
+                        modifier = Modifier
+                            .clickableNoIndication(rememberInteractionSource()) { onClick() }
+                            .testTag("home_balance_${other.currency}"),
+                        currency = other.currency,
+                        balance = other.amount.toDouble(),
+                        shortenBigNumbers = true,
+                        hiddenMode = hideBalance,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OtherCurrenciesToggle(
+    count: Int,
+    expanded: Boolean,
+    onClick: () -> Unit,
+) {
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        label = "Other currencies toggle"
+    )
+
+    Row(
+        modifier = Modifier
+            .clip(UI.shapes.rFull)
+            .background(UI.colors.medium)
+            .clickable(onClick = onClick)
+            .padding(start = 12.dp, end = 4.dp)
+            .testTag("home_balance_other_currencies"),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (!expanded) {
+            Text(
+                text = "+$count",
+                style = UI.typo.b2.style(
+                    color = UI.colors.pureInverse,
+                    fontWeight = FontWeight.Bold,
+                ),
+            )
+        }
+
+        IvyIcon(
+            modifier = Modifier
+                .size(32.dp)
+                .rotate(rotation),
+            icon = R.drawable.ic_expandarrow,
+        )
     }
 }
 

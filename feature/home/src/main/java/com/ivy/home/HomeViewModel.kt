@@ -52,6 +52,7 @@ import com.ivy.wallet.domain.action.viewmodel.home.UpcomingAct
 import com.ivy.wallet.domain.action.viewmodel.home.UpdateAccCacheAct
 import com.ivy.wallet.domain.action.viewmodel.home.UpdateCategoriesCacheAct
 import com.ivy.wallet.domain.action.wallet.CalcIncomeExpenseAct
+import com.ivy.wallet.domain.action.wallet.CalcAccBalancesInOwnCurrencyAct
 import com.ivy.wallet.domain.action.wallet.CalcWalletBalanceAct
 import com.ivy.wallet.domain.deprecated.logic.PlannedPaymentsLogic
 import com.ivy.wallet.domain.pure.data.ClosedTimeRange
@@ -75,6 +76,7 @@ class HomeViewModel @Inject constructor(
     private val historyWithDateDivsAct: HistoryWithDateDivsAct,
     private val calcIncomeExpenseAct: CalcIncomeExpenseAct,
     private val calcWalletBalanceAct: CalcWalletBalanceAct,
+    private val calcAccBalancesInOwnCurrencyAct: CalcAccBalancesInOwnCurrencyAct,
     private val settingsAct: SettingsAct,
     private val accountsAct: AccountsAct,
     private val categoryRepository: CategoryRepository,
@@ -107,6 +109,7 @@ class HomeViewModel @Inject constructor(
     private var history by mutableStateOf<ImmutableList<TransactionHistoryItem>>(persistentListOf())
     private var stats by mutableStateOf(IncomeExpensePair.zero())
     private var balance by mutableStateOf(BigDecimal.ZERO)
+    private var balanceByCurrency by mutableStateOf<ImmutableList<CurrencyBalance>>(persistentListOf())
     private var buffer by mutableStateOf(
         BufferInfo(
             amount = BigDecimal.ZERO,
@@ -147,6 +150,7 @@ class HomeViewModel @Inject constructor(
             history = getHistory(),
             stats = getStats(),
             balance = getBalance(),
+            balanceByCurrency = getBalanceByCurrency(),
             buffer = getBuffer(),
             upcoming = getUpcoming(),
             overdue = getOverdue(),
@@ -196,6 +200,11 @@ class HomeViewModel @Inject constructor(
     @Composable
     private fun getBalance(): BigDecimal {
         return balance
+    }
+
+    @Composable
+    private fun getBalanceByCurrency(): ImmutableList<CurrencyBalance> {
+        return balanceByCurrency
     }
 
     @Composable
@@ -333,6 +342,12 @@ class HomeViewModel @Inject constructor(
         )
 
         balance = balanceAmount
+        balanceByCurrency = balancesByCurrency(
+            accountBalances = calcAccBalancesInOwnCurrencyAct(
+                CalcAccBalancesInOwnCurrencyAct.Input(baseCurrency = settings.baseCurrency)
+            ),
+            selectedCurrency = settings.baseCurrency,
+        ).toImmutableList()
         stats = incomeExpense
 
         return Triple(settings, timeRange, balanceAmount)
