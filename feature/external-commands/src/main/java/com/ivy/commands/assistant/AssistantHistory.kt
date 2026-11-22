@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.addJsonObject
@@ -30,7 +31,7 @@ import javax.inject.Singleton
  * A saved assistant conversation: what the chat shows and what Gemini needs to continue it.
  */
 data class Conversation(
-    val id: String,
+    val id: ConversationId,
     val updatedAt: Long,
     val messages: List<ChatMessage>,
     val agent: AgentSnapshot,
@@ -71,7 +72,7 @@ class AssistantHistory internal constructor(
      * Saves [conversation], replacing the one with the same id, and drops the oldest beyond
      * [MAX_CONVERSATIONS] together with their photos.
      */
-    suspend fun save(conversation: Conversation) = mutex.withLock {
+    suspend fun save(conversation: Conversation): Unit = mutex.withLock {
         withContext(dispatchers.io) {
             val all = (listOf(conversation) + read().filter { it.id != conversation.id })
                 .sortedByDescending { it.updatedAt }
@@ -81,7 +82,7 @@ class AssistantHistory internal constructor(
         }
     }
 
-    suspend fun delete(id: String) = mutex.withLock {
+    suspend fun delete(id: ConversationId): Unit = mutex.withLock {
         withContext(dispatchers.io) {
             val all = read()
             write(all.filter { it.id != id })
@@ -105,16 +106,19 @@ class AssistantHistory internal constructor(
 
     private fun read(): List<Conversation> {
         val text = try {
-            file.takeIf { it.exists() }?.readText() ?: return emptyList()
+            file.takeIf { it.exists() }?.readText()
         } catch (_: IOException) {
-            return emptyList()
+            null
         }
-        val array = try {
-            json.parseToJsonElement(text) as? JsonArray ?: return emptyList()
-        } catch (_: SerializationException) {
-            return emptyList()
-        }
-        return array.mapNotNull { (it as? JsonObject)?.toConversation() }
+        return text?.let(::parseArray)
+            ?.mapNotNull { (it as? JsonObject)?.toConversation() }
+            .orEmpty()
+    }
+
+    private fun parseArray(text: String): JsonArray? = try {
+        json.parseToJsonElement(text) as? JsonArray
+    } catch (_: SerializationException) {
+        null
     }
 
     /** The history is best effort: a failed write keeps the previous history. */
@@ -141,7 +145,7 @@ class AssistantHistory internal constructor(
     }
 
     private fun Conversation.toJson(): JsonObject = buildJsonObject {
-        put("id", id)
+        put("id", id.value)
         put("updatedAt", updatedAt)
         put("messages", JsonArray(messages.map { it.toJson() }))
         put("contents", JsonArray(agent.contents.map { it.withoutImages() }))
@@ -151,7 +155,7 @@ class AssistantHistory internal constructor(
     private fun JsonObject.toConversation(): Conversation? {
         val id = string("id") ?: return null
         return Conversation(
-            id = id,
+            id = ConversationId(id),
             updatedAt = (this["updatedAt"] as? JsonPrimitive)?.longOrNull ?: 0L,
             messages = (this["messages"] as? JsonArray).orEmpty()
                 .mapNotNull { (it as? JsonObject)?.toMessage() },
@@ -203,49 +207,54 @@ class AssistantHistory internal constructor(
         }
     }
 
-    @Suppress("CyclomaticComplexMethod")
     private fun JsonObject.toMessage(): ChatMessage? {
-        val id = (this["id"] as? JsonPrimitive)?.longOrNull ?: return null
-        fun transaction() = string("transaction")
+        val transaction = string("transaction")
             ?.let { runCatching { UUID.fromString(it) }.getOrNull() }
             ?.let(::TransactionId)
-        return when (string("kind")) {
+        return (this["id"] as? JsonPrimitive)?.longOrNull?.let { id -> toMessage(id, transaction) }
+    }
+
+    @Suppress("CyclomaticComplexMethod")
+    private fun JsonObject.toMessage(id: Long, transaction: TransactionId?): ChatMessage? =
+        when (string("kind")) {
             "user" -> ChatMessage.User(id, string("text").orEmpty(), string("image"))
             "assistant" -> ChatMessage.Assistant(id, string("text").orEmpty())
             "error" -> ChatMessage.Error(id, string("text").orEmpty())
-            "added" -> ChatMessage.Added(
-                id = id,
-                transaction = transaction() ?: return null,
-                type = string("type").orEmpty(),
-                amount = string("amount").orEmpty(),
-                details = string("details").orEmpty(),
-                undone = (this["undone"] as? JsonPrimitive)?.booleanOrNull ?: false,
-            )
+            "added" -> transaction?.let {
+                ChatMessage.Added(
+                    id = id,
+                    transaction = it,
+                    type = string("type").orEmpty(),
+                    amount = string("amount").orEmpty(),
+                    details = string("details").orEmpty(),
+                    undone = (this["undone"] as? JsonPrimitive)?.booleanOrNull ?: false,
+                )
+            }
 
-            "deleted" -> ChatMessage.Deleted(id, transaction() ?: return null)
+            "deleted" -> transaction?.let { ChatMessage.Deleted(id, it) }
             "notice" -> NoticeKind.entries.firstOrNull { it.name == string("notice") }
                 ?.let { ChatMessage.Notice(id, it) }
 
             else -> null
         }
-    }
 
     /** Replaces photos sent to Gemini with a short note, to keep the history small. */
     private fun JsonObject.withoutImages(): JsonObject {
-        val parts = this["parts"] as? JsonArray ?: return this
-        if (parts.none { (it as? JsonObject)?.containsKey("inlineData") == true }) return this
-        return JsonObject(
-            this + ("parts" to buildJsonArray {
-                parts.forEach { part ->
-                    if ((part as? JsonObject)?.containsKey("inlineData") == true) {
-                        addJsonObject { put("text", PHOTO_NOTE) }
-                    } else {
-                        add(part)
-                    }
+        val parts = this["parts"] as? JsonArray
+        if (parts == null || parts.none { it.isImage() }) return this
+        val withNotes = buildJsonArray {
+            parts.forEach { part ->
+                if (part.isImage()) {
+                    addJsonObject { put("text", PHOTO_NOTE) }
+                } else {
+                    add(part)
                 }
-            })
-        )
+            }
+        }
+        return JsonObject(this + ("parts" to withNotes))
     }
+
+    private fun JsonElement.isImage(): Boolean = (this as? JsonObject)?.containsKey("inlineData") == true
 
     private fun JsonObject.string(name: String): String? = (this[name] as? JsonPrimitive)?.contentOrNull
 

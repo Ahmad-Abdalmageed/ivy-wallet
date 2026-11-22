@@ -15,8 +15,8 @@ sealed interface AssistantEvent {
     data object OnNewChatClick : AssistantEvent
     data object OnHistoryClick : AssistantEvent
     data object OnHistoryDismiss : AssistantEvent
-    data class OnConversationClick(val id: String) : AssistantEvent
-    data class OnConversationDelete(val id: String) : AssistantEvent
+    data class OnConversationClick(val id: ConversationId) : AssistantEvent
+    data class OnConversationDelete(val id: ConversationId) : AssistantEvent
     data object OnSettingsClick : AssistantEvent
     data object OnSettingsDismiss : AssistantEvent
     data class OnApiKeyChange(val apiKey: String) : AssistantEvent

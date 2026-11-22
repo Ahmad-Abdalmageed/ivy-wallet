@@ -19,9 +19,12 @@ data class AssistantState(
     val history: ImmutableList<ConversationSummary>?,
 )
 
+@JvmInline
+value class ConversationId(val value: String)
+
 @Immutable
 data class ConversationSummary(
-    val id: String,
+    val id: ConversationId,
     /** Empty when the conversation started with a photo only. */
     val title: String,
     /** Epoch millis */

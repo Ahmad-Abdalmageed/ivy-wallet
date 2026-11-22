@@ -211,7 +211,7 @@ class AssistantViewModelTest : ComposeViewModelTest() {
     fun `shows the history and opens a saved conversation`() {
         val snapshot = AgentSnapshot(emptyList(), listOf("note"))
         val conversation = Conversation(
-            id = "old",
+            id = ConversationId("old"),
             updatedAt = 500,
             messages = listOf(
                 ChatMessage.User(0, "coffee 10", null),
@@ -224,9 +224,11 @@ class AssistantViewModelTest : ComposeViewModelTest() {
         every { agent.restore(capture(restored)) } returns Unit
 
         viewModel.runTest(events = listOf(AssistantEvent.OnHistoryClick)) {
-            this.history shouldBe persistentListOf(ConversationSummary("old", "coffee 10", 500, current = false))
+            this.history shouldBe persistentListOf(
+                ConversationSummary(ConversationId("old"), "coffee 10", 500, current = false)
+            )
         }
-        viewModel.runTest(events = listOf(AssistantEvent.OnConversationClick("old"))) {
+        viewModel.runTest(events = listOf(AssistantEvent.OnConversationClick(ConversationId("old")))) {
             this.history shouldBe null
             messages shouldBe conversation.messages
         }
@@ -237,7 +239,7 @@ class AssistantViewModelTest : ComposeViewModelTest() {
         viewModel.runTest(events = listOf(AssistantEvent.OnExampleClick("lunch 25"))) {
             messages[2] shouldBe ChatMessage.User(2, "lunch 25", null)
         }
-        saved.captured.id shouldBe "old"
+        saved.captured.id shouldBe ConversationId("old")
     }
 
     @Test
