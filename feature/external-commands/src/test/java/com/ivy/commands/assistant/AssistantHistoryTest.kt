@@ -90,7 +90,7 @@ class AssistantHistoryTest {
         history.save(conversation("a", updatedAt = 1, imageUri = photo))
         File(java.net.URI(photo)).exists() shouldBe true
 
-        history.delete("a")
+        history.delete(ConversationId("a"))
 
         history.conversations() shouldBe emptyList()
         File(java.net.URI(photo)).exists() shouldBe false
