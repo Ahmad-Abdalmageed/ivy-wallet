@@ -24,6 +24,8 @@ data class HomeState(
     val stats: IncomeExpensePair,
 
     val balance: BigDecimal,
+    /** Selected currency first, then the others; each in its own currency, not exchanged. */
+    val balanceByCurrency: ImmutableList<CurrencyBalance>,
 
     val buffer: BufferInfo,
 

@@ -63,6 +63,7 @@ import com.ivy.wallet.ui.theme.modal.CurrencyModal
 import com.ivy.wallet.ui.theme.modal.DeleteModal
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import java.math.BigDecimal
 
 @ExperimentalAnimationApi
@@ -135,7 +136,7 @@ fun BoxWithConstraintsScope.HomeUi(
             name = uiState.name,
             period = uiState.period,
             currency = baseCurrency,
-            balance = uiState.balance.toDouble(),
+            balance = (uiState.balanceByCurrency.firstOrNull()?.amount ?: BigDecimal.ZERO).toDouble(),
             hideBalance = uiState.hideBalance,
 
             onShowMonthModal = {
@@ -163,7 +164,7 @@ fun BoxWithConstraintsScope.HomeUi(
             onSetExpand = {
                 onEvent(HomeEvent.SetExpanded(it))
             },
-            balance = uiState.balance,
+            balanceByCurrency = uiState.balanceByCurrency,
             onOpenMoreMenu = {
                 setMoreMenuExpanded(true)
             },
@@ -294,7 +295,7 @@ fun HomeLazyColumn(
 
     upcoming: LegacyDueSection,
     overdue: LegacyDueSection,
-    balance: BigDecimal,
+    balanceByCurrency: ImmutableList<CurrencyBalance>,
     stats: IncomeExpensePair,
     history: ImmutableList<TransactionHistoryItem>,
 
@@ -342,7 +343,8 @@ fun HomeLazyColumn(
         item {
             CashFlowInfo(
                 currency = baseData.baseCurrency,
-                balance = balance.toDouble(),
+                balance = (balanceByCurrency.firstOrNull()?.amount ?: BigDecimal.ZERO).toDouble(),
+                otherBalances = balanceByCurrency.drop(1).toImmutableList(),
 
                 hideBalance = hideBalance,
 
@@ -411,6 +413,7 @@ private fun BoxWithConstraintsScope.PreviewHomeTab(isDark: Boolean = false) {
                     categories = persistentListOf()
                 ),
                 balance = BigDecimal.ZERO,
+                balanceByCurrency = persistentListOf(),
                 buffer = BufferInfo(
                     amount = BigDecimal.ZERO,
                     bufferDiff = BigDecimal.ZERO,
